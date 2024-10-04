@@ -5,7 +5,7 @@ from typing import Dict, Optional
 from sqlmodel import JSON, Enum, Field, SQLModel, Column
 
 
-class Account(SQLModel, table=True):
+class Person(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     uuid: uuid.UUID
     height_cm: int
@@ -14,7 +14,7 @@ class Account(SQLModel, table=True):
 class Scan(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     uuid: uuid.UUID
-    account_id: Optional[int] = Field(foreign_key="account.id")
+    person_id: Optional[int] = Field(foreign_key="person.id")
 
 
 class Status(str, enum.Enum):
