@@ -1,3 +1,5 @@
+CREATE EXTENSION "pgcrypto";
+
 CREATE TABLE IF NOT EXISTS account(
     id BIGSERIAL PRIMARY KEY,
     uuid UUID UNIQUE NOT NULL,
@@ -36,7 +38,7 @@ CREATE TABLE IF NOT EXISTS video(
     uuid UUID NOT NULL,
     scan_id BIGINT NOT NULL,
     status STATUS NOT NULL,
-    joints JSONB[],
+    joints JSONB,
     CONSTRAINT fk_scan_id
         FOREIGN KEY(scan_id)
         REFERENCES scan(id)
