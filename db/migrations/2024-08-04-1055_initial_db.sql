@@ -3,6 +3,7 @@ CREATE EXTENSION "pgcrypto";
 CREATE TABLE IF NOT EXISTS person(
     id BIGSERIAL PRIMARY KEY,
     uuid UUID UNIQUE NOT NULL,
+    name TEXT NOT NULL,
     height_cm smallint NOT NULL
 );
 

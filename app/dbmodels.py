@@ -8,6 +8,7 @@ from sqlmodel import JSON, Enum, Field, SQLModel, Column
 class Person(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     uuid: uuid.UUID
+    name: str
     height_cm: int
 
 
