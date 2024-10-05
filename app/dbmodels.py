@@ -2,19 +2,21 @@ import enum
 import uuid
 
 from typing import Dict, Optional
+from sqlalchemy import Column
 from sqlmodel import JSON, Enum, Field, SQLModel, Column
 
 
-class Person(SQLModel, table=True):
+class BaseTable(SQLModel):
     id: Optional[int] = Field(default=None, primary_key=True)
     uuid: uuid.UUID
+
+
+class Person(BaseTable, table=True):
     name: str
     height_cm: int
 
 
-class Scan(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    uuid: uuid.UUID
+class Scan(BaseTable, table=True):
     person_id: Optional[int] = Field(foreign_key="person.id")
 
 
@@ -23,17 +25,13 @@ class Status(str, enum.Enum):
     done = "done"
 
 
-class Image(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    uuid: uuid.UUID
+class Image(BaseTable, table=True):
     scan_id: Optional[int] = Field(default=None, foreign_key="scan.id")
     status: Status = Field(sa_column=Column(Enum(Status)))
     joints: Optional[Dict] = Field(default_factory=dict, sa_column=Column(JSON))
 
 
-class Video(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    uuid: uuid.UUID
-    scan_id: Optional[int] = Field(foreign_key="scan.id")
+class Video(BaseTable, table=True):
+    scan_id: Optional[int] = Field(default=None, foreign_key="scan.id")
     status: Status = Field(sa_column=Column(Enum(Status)))
     joints: list[Optional[Dict]] = Field(default_factory=dict, sa_column=Column(JSON))
