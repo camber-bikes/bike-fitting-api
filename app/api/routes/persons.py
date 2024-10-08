@@ -11,7 +11,7 @@ from app.dbmodels import Person
 router = APIRouter()
 
 
-@router.put("/information", response_model=CreatePersonInformationResponse)
+@router.put("/information")
 async def create_person(
     session: SessionDep, body: CreatePersonInformation
 ) -> CreatePersonInformationResponse:
@@ -25,5 +25,7 @@ async def create_person(
     await session.refresh(person)
 
     return CreatePersonInformationResponse(
-        uuid=person.uuid, name=person.name, height_cm=person.height_cm
+        uuid=person.uuid,
+        name=person.name,
+        height_cm=person.height_cm,
     )

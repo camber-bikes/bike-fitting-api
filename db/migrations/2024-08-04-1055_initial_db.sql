@@ -35,9 +35,8 @@ CREATE TRIGGER update_modified_scan_time BEFORE UPDATE ON scan FOR EACH ROW EXEC
 
 CREATE TYPE STATUS AS ENUM ('new', 'done');
 
-CREATE TABLE IF NOT EXISTS image(
+CREATE TABLE IF NOT EXISTS photo(
     id BIGSERIAL PRIMARY KEY,
-    uuid UUID NOT NULL,
     scan_id BIGINT NOT NULL,
     status STATUS NOT NULL,
     joints JSONB,
@@ -49,11 +48,10 @@ CREATE TABLE IF NOT EXISTS image(
         ON UPDATE CASCADE
         ON DELETE CASCADE
 );
-CREATE TRIGGER update_modified_image_time BEFORE UPDATE ON image FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_modified_photo_time BEFORE UPDATE ON photo FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 
 CREATE TABLE IF NOT EXISTS video(
     id BIGSERIAL PRIMARY KEY,
-    uuid UUID NOT NULL,
     scan_id BIGINT NOT NULL,
     status STATUS NOT NULL,
     joints JSONB,
