@@ -1,5 +1,8 @@
 import asyncio
 import logging
+import random
+
+from click.testing import Result
 from fastapi import APIRouter, UploadFile
 from fastapi.exceptions import HTTPException
 from sqlmodel import select
@@ -13,6 +16,7 @@ from app.apimodels import (
     CreateScanResponse,
     ProcessResults,
     UploadResponse,
+    ResultResponse,
 )
 from app.dbmodels import Photo, Person, Scan, Status, Video
 
@@ -171,3 +175,38 @@ async def process_body_photo_results(
     await session.commit()
 
     # FIXME: asynchronously run processing task if video
+
+
+@router.get("/{scan_uuid}/result")
+async def get_result(
+    session: SessionDep,
+    scan_uuid: uuid.UUID,
+) -> ResultResponse:
+    """
+    Args:
+        session:
+        scan_uuid:
+
+    Returns:
+        ResultResponse: containing a boolean if the scan is done and optionally the change parameters of the saddle
+    """
+    # Commenting out the current logic for testing
+    # statement = select(Scan.result).where(Scan.uuid == scan_uuid)
+    # result = await session.exec(statement)
+    #
+    # if result == None:
+    #     return ResultResponse(done=False)
+    # else:
+    #     saddle_x = result["saddle_x_cm"]
+    #     saddle_y = result["saddle_y_cm"]
+    #     return ResultResponse(done=True, saddle_x_cm=saddle_x, saddle_y_cm=saddle_y)
+
+    # Random logic for testing purposes
+    is_done = random.choice([True, False])
+
+    if not is_done:
+        return ResultResponse(done=False)
+    else:
+        saddle_x = random.uniform(1.0, 10.0)  # Random example value for saddle_x_cm
+        saddle_y = random.uniform(1.0, 10.0)  # Random example value for saddle_y_cm
+        return ResultResponse(done=True, saddle_x_cm=saddle_x, saddle_y_cm=saddle_y)

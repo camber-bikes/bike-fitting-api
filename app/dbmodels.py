@@ -19,6 +19,9 @@ class Person(BaseTable, table=True):
 class Scan(BaseTable, table=True):
     uuid: uuid.UUID
     person_id: Optional[int] = Field(foreign_key="person.id")
+    result: Optional[Dict[Any, Any]] = Field(
+        default_factory=dict, sa_column=Column(JSON)
+    )
 
 
 class Status(str, enum.Enum):

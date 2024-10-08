@@ -1,4 +1,4 @@
-from typing import Any, Literal, Union
+from typing import Any, Literal, Union, Optional
 import uuid
 from pydantic import BaseModel, Field
 
@@ -33,3 +33,9 @@ type ProcessType = Union[Literal["photo"], Literal["video"]]
 class ProcessResults(BaseModel):
     process_type: ProcessType
     joints: Any
+
+
+class ResultResponse(BaseModel):
+    done: bool
+    saddle_x_cm: Optional[float] = None
+    saddle_y_cm: Optional[float] = None
