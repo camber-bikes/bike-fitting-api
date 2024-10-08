@@ -64,3 +64,4 @@ CREATE TABLE IF NOT EXISTS video(
         ON DELETE CASCADE
 );
 CREATE TRIGGER update_modified_video_time BEFORE UPDATE ON video FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+
