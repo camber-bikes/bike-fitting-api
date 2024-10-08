@@ -2,13 +2,13 @@ name: Cloud PostgreSQL Migrations
 
 on:
   push:
-   #  paths:
- #     - 'db/migrations/**'
-    branches: [ "feat/ci-migrate" ]
+    paths:
+      - 'db/migrations/**'
+    branches: [ "main" ]
   pull_request:
-#    paths:
-#      - 'db/migrations/**'
-    branches: [ "feat/ci-migrate" ]
+    paths:
+      - 'db/migrations/**'
+    branches: [ "main" ]
 jobs:
   run-migrations:
     runs-on: ubuntu-latest
@@ -17,7 +17,7 @@ jobs:
     - name: Check out repository
       uses: actions/checkout@v4
 
-    - name: Setup Cloud SQL Proxy v2
+    - name: Setup Cloud SQL Proxy
       run: |
         curl -o cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.6.1/cloud-sql-proxy.linux.amd64
         chmod +x cloud-sql-proxy
@@ -34,7 +34,7 @@ jobs:
     - name: Start Cloud SQL Proxy
       run: |
         ./cloud-sql-proxy --credentials-file=gcp-sa-key.json bike-fitting-api:us-west2:prod &
-        sleep 5  # Give the proxy a few seconds to start
+        sleep 5  
 
     - name: Run SQL migrations
       env:
