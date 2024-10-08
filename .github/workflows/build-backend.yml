@@ -17,6 +17,8 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  GCP_REGION: us-west2
+  GCP_PROJECT_ID: bike-fitting-api
 
 jobs:
   build-and-push:
@@ -49,3 +51,29 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: Configure Docker for GCP Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+
+      - name: Retag and push to Google Cloud Artifact Registry
+        run: |
+          # Get the first tag from the metadata step
+          SOURCE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | cut -d' ' -f1)
+          
+          # Create the destination tag for GCP Artifact Registry
+          DEST_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/bike-fitting-api/camber-bikes:latest"
+          
+          # Retag the image
+          docker tag $SOURCE_TAG $DEST_TAG
+          
+          # Push to GCP Artifact Registry
+          docker push $DEST_TAG
