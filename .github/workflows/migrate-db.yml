@@ -25,13 +25,19 @@ jobs:
     - name: Run SQL migrations
       env:
         PGHOST: ${{ secrets.DB_HOST }}
-        PGPORT: ${{ secrets.DB_PORT }}
+        PGPORT: 5432
         PGDATABASE: ${{ secrets.DB_NAME }}
         PGUSER: ${{ secrets.DB_USER }}
         PGPASSWORD: ${{ secrets.DB_PASSWORD }}
       run: |
+        # Create SSL directory
+        mkdir -p ~/.postgresql
+
+        # Download the Cloud SQL public certificate
+        wget https://dl.google.com/cloudsql/cloud_sql_proxy.postgres.crt -O ~/.postgresql/root.crt
+
         for file in db/migrations/*.sql
         do
           echo "Running migration: $file"
-          psql -f "$file"
+          PGSSLMODE=verify-ca psql -f "$file"
         done
