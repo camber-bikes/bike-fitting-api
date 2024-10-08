@@ -17,15 +17,29 @@ jobs:
     - name: Check out repository
       uses: actions/checkout@v4
 
+    - name: Setup Cloud SQL Proxy v2
+      run: |
+        curl -o cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.6.1/cloud-sql-proxy.linux.amd64
+        chmod +x cloud-sql-proxy
+
+    - name: Setup GCP Service Account Key
+      run: |
+        echo '${{ secrets.GCP_SA_KEY }}' > gcp-sa-key.json
+
     - name: Install PostgreSQL client
       run: |
         sudo apt-get update
         sudo apt-get install -y postgresql-client
 
+    - name: Start Cloud SQL Proxy
+      run: |
+        ./cloud-sql-proxy --json-credentials=gcp-sa-key.json ${{ secrets.CLOUD_SQL_CONNECTION_NAME }} &
+        sleep 5  # Give the proxy a few seconds to start
+
     - name: Run SQL migrations
       env:
-        PGHOST: ${{ secrets.DB_HOST }}
-        PGPORT: ${{ secrets.DB_PORT }}
+        PGHOST: 127.0.0.1
+        PGPORT: 5432
         PGDATABASE: ${{ secrets.DB_NAME }}
         PGUSER: ${{ secrets.DB_USER }}
         PGPASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -35,3 +49,12 @@ jobs:
           echo "Running migration: $file"
           psql -f "$file"
         done
+
+    - name: Stop Cloud SQL Proxy
+      if: always()
+      run: |
+        kill $(pgrep cloud-sql-proxy)
+
+    - name: Clean up GCP Service Account Key
+      if: always()
+      run: rm gcp-sa-key.json
