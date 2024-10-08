@@ -2,13 +2,13 @@ name: Cloud PostgreSQL Migrations
 
 on:
   push:
-    paths:
-      - 'db/migrations/**'
-    branches: [ "main" ]
+   #  paths:
+ #     - 'db/migrations/**'
+    branches: [ "feat/ci-migrate" ]
   pull_request:
-    paths:
-      - 'db/migrations/**'
-    branches: [ "main" ]
+#    paths:
+#      - 'db/migrations/**'
+    branches: [ "feat/ci-migrate" ]
 jobs:
   run-migrations:
     runs-on: ubuntu-latest
