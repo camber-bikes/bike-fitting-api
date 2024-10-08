@@ -1,3 +1,4 @@
+from typing import Any, Literal, Union
 import uuid
 from pydantic import BaseModel, Field
 
@@ -20,3 +21,15 @@ class CreateScan(BaseModel):
 class CreateScanResponse(BaseModel):
     person_uuid: uuid.UUID
     scan_uuid: uuid.UUID
+
+
+class UploadResponse(BaseModel):
+    successful: bool
+
+
+type ProcessType = Union[Literal["photo"], Literal["video"]]
+
+
+class ProcessResults(BaseModel):
+    process_type: ProcessType
+    joints: Any
