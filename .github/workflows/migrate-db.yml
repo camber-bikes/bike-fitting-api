@@ -1,0 +1,37 @@
+name: Cloud PostgreSQL Migrations
+
+on:
+  push:
+    paths:
+      - 'db/migrations/**'
+    branches: [ "main" ]
+  pull_request:
+    paths:
+      - 'db/migrations/**'
+    branches: [ "main" ]
+jobs:
+  run-migrations:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Install PostgreSQL client
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y postgresql-client
+
+    - name: Run SQL migrations
+      env:
+        PGHOST: ${{ secrets.DB_HOST }}
+        PGPORT: ${{ secrets.DB_PORT }}
+        PGDATABASE: ${{ secrets.DB_NAME }}
+        PGUSER: ${{ secrets.DB_USER }}
+        PGPASSWORD: ${{ secrets.DB_PASSWORD }}
+      run: |
+        for file in db/migrations/*.sql
+        do
+          echo "Running migration: $file"
+          psql -f "$file"
+        done
