@@ -1,18 +1,22 @@
-name: Docker Build and Push Serverless
+name: Docker Build and Push Backend
 
 on:
   push:
     paths:
-      - "serverless/*"
+      - '**'
+      - '!serverless/**'
     branches: [ "main" ]
   pull_request:
     paths:
-      - "serverless/*"
+      - '**'
+      - '!serverless/**'
     branches: [ "main" ]
+
+
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}-serverless
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-push:
@@ -41,7 +45,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
-          context: ./serverless
+          context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
