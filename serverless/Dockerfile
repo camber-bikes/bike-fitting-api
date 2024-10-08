@@ -11,11 +11,17 @@ RUN python3.12 --version && pip3.12 --version
 
 
 
+
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy Lambda
+
+# Copy
 COPY processing.py .
+COPY requirements.txt .
+
+# Install pip req
+RUN pip3.12 install -r ./requirements.txt
 
 # Download Mediapipe model
 RUN curl -o pose_landmarker.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task
