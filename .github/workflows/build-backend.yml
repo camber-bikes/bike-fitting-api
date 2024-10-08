@@ -70,7 +70,7 @@ jobs:
           SOURCE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | cut -d' ' -f1)
           
           # Create the destination tag for GCP Artifact Registry
-          DEST_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/bike-fitting-api/camber-bikes:latest"
+          DEST_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/camber-bikes:latest"
           
           # Retag the image
           docker tag $SOURCE_TAG $DEST_TAG
