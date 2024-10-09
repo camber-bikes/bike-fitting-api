@@ -11,7 +11,7 @@ on:
 env:
   GCP_REGION: us-west2
   GCP_PROJECT_ID: bike-fitting-api
-  GCP_IMAGE_TAG: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/camber-bikes/backend
+  GCP_IMAGE_TAG: us-west2-docker.pkg.dev/bike-fitting-api/camber-bikes/backend
 
 jobs:
   build-and-push:
