@@ -10,6 +10,9 @@ RUN dnf update -y && \
 RUN python3.12 --version && pip3.12 --version
 
 
+# Install APT dependency
+RUN apt update && apt install ffmpeg libsm6 libxext6  -y
+
 
 
 # Set the working directory in the container
