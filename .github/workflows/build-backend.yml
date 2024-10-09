@@ -6,11 +6,7 @@ on:
       - '**'
       - '!serverless/**'
     branches: [ "main" ]
-  pull_request:
-    paths:
-      - '**'
-      - '!serverless/**'
-    branches: [ "main" ]
+  workflow_dispatch:
 
 
 

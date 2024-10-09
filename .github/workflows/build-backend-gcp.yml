@@ -6,14 +6,12 @@ on:
       - '**'
       - '!serverless/**'
     branches: [ "main" ]
-  pull_request:
-    paths:
-      - '**'
-      - '!serverless/**'
-    branches: [ "main" ]
+  workflow_dispatch:
+
 env:
   GCP_REGION: us-west2
   GCP_PROJECT_ID: bike-fitting-api
+  GCP_IMAGE_TAG: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/camber-bikes/backend
 
 jobs:
   build-and-push:
@@ -41,4 +39,17 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/camber-bikes/backend
+          tags: ${{env.GCP_IMAGE_TAG}}
+
+      - name: Deploy to Cloud Run
+        run: |
+          SERVICE_NAME="${{ secrets.CLOUD_RUN_SERVICE }}"
+          REGION="${{ secrets.CLOUD_RUN_REGION }}"
+          IMAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.ARTIFACT_REGISTRY_REPO }}/${{ secrets.CLOUD_RUN_IMAGE }}:latest"
+          
+          gcloud run deploy ${{secrets.CLOUD_RUN_SERVICE}} \
+            --image ${{env.GCP_IMAGE_TAG}}:latest \
+            --region ${{env.GCP_REGION}} \
+            --platform managed \
+            --allow-unauthenticated \
+            --migrate-traffic
