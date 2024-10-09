@@ -2,17 +2,8 @@ FROM nvidia/cuda:12.6.1-runtime-ubi9
 
 # Update the system and install Python
 RUN dnf update -y && \
-    dnf install -y python3.12 python3.12-pip && \
+    dnf install -y python3.12 python3.12-pip mesa-libGL && \
     dnf clean all
-
-
-# Verify the installation
-RUN python3.12 --version && pip3.12 --version
-
-
-# Install APT dependency
-RUN dnf install -y mesa-libGL
-
 
 
 # Set the working directory in the container
