@@ -8,6 +8,6 @@ api_router.include_router(persons.router, prefix="/persons", tags=["person"])
 api_router.include_router(scans.router, prefix="/scans", tags=["scan"])
 
 
-@api_router.get("healthcheck")
+@api_router.get("/healthcheck")
 async def healthcheck() -> bool:
     return True
