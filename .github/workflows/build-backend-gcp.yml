@@ -12,7 +12,7 @@ on:
       - '!serverless/**'
     branches: [ "fix/backend-build-push" ]
 env:
-  GCP_REGION: us-west-2
+  GCP_REGION: us-west2
   GCP_PROJECT_ID: bike-fitting-api
 
 jobs:
