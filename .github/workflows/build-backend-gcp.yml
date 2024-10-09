@@ -51,5 +51,6 @@ jobs:
             --image ${{env.GCP_IMAGE_TAG}}:latest \
             --region ${{env.GCP_REGION}} \
             --platform managed \
-            --allow-unauthenticated \
-            --migrate-traffic
+            --allow-unauthenticated
+          gcloud run services update-traffic backend --to-latest
+                
