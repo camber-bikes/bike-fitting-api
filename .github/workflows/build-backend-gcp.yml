@@ -5,12 +5,12 @@ on:
     paths:
       - '**'
       - '!serverless/**'
-    branches: [ "fix/backend-build-push" ]
+    branches: [ "main" ]
   pull_request:
     paths:
       - '**'
       - '!serverless/**'
-    branches: [ "fix/backend-build-push" ]
+    branches: [ "main" ]
 env:
   GCP_REGION: us-west2
   GCP_PROJECT_ID: bike-fitting-api
