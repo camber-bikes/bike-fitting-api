@@ -64,6 +64,9 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
 
+      - name: test glcoud
+        run: |
+          gcloud config list
       - name: Build and push Docker image to Artefact Registry
         uses: docker/build-push-action@v4
         with:
