@@ -1,0 +1,44 @@
+name: Docker Build and Push Backend to GCP Artefact Registry
+
+on:
+  push:
+    paths:
+      - '**'
+      - '!serverless/**'
+    branches: [ "main" ]
+  pull_request:
+    paths:
+      - '**'
+      - '!serverless/**'
+    branches: [ "main" ]
+env:
+  GCP_REGION: us-west2
+  GCP_PROJECT_ID: bike-fitting-api
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: Configure Docker for GCP Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+      - name: Build and push Docker image to Artefact Registry
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/camber-bikes/backend
