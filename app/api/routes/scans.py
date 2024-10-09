@@ -124,7 +124,7 @@ async def upload_pedalling_video(
         logging.error(e)
         raise HTTPException(500, "could not upload file")
 
-    video = Video(scan_id=scan.id, status=Status.new)
+    video = Video(scan_id=scan.id, status=Status.new, process_result=None)
     session.add(video)
     await session.commit()
 
@@ -150,25 +150,25 @@ async def process_body_photo_results(
         raise Exception("could not find scan")
 
     if body.process_type == "photo":
-        statement = select(Photo).where(Scan.id == scan_id)
+        statement = select(Photo).where(Photo.scan_id == scan_id)
         photo = await session.exec(statement)
         photo = photo.first()
         if photo == None:
             raise Exception("could not find photo")
 
         photo.status = Status.done
-        photo.joints = body.joints
+        photo.process_result = body.result
 
         session.add(photo)
     elif body.process_type == "video":
-        statement = select(Video).where(Scan.id == scan_id)
+        statement = select(Video).where(Video.scan_id == scan_id)
         video = await session.exec(statement)
         video = video.first()
         if video == None:
             raise Exception("could not find video")
 
         video.status = Status.done
-        video.joints = body.joints
+        video.process_result = body.result
 
         session.add(video)
 

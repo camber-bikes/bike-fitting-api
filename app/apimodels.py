@@ -32,7 +32,7 @@ type ProcessType = Union[Literal["photo"], Literal["video"]]
 
 class ProcessResults(BaseModel):
     process_type: ProcessType
-    joints: Any
+    result: Any
 
 
 class ResultResponse(BaseModel):

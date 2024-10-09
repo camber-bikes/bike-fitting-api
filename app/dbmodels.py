@@ -32,14 +32,10 @@ class Status(str, enum.Enum):
 class Photo(BaseTable, table=True):
     scan_id: Optional[int] = Field(default=None, foreign_key="scan.id")
     status: Status = Field(sa_column=Column(Enum(Status)))
-    joints: Optional[Dict[Any, Any]] = Field(
-        default_factory=dict, sa_column=Column(JSON)
-    )
+    process_result: Optional[Any] = Field(default=None, sa_column=Column(JSON))
 
 
 class Video(BaseTable, table=True):
     scan_id: Optional[int] = Field(default=None, foreign_key="scan.id")
     status: Status = Field(sa_column=Column(Enum(Status)))
-    joints: Optional[list[Dict[Any, Any]]] = Field(
-        default_factory=dict, sa_column=Column(JSON)
-    )
+    process_result: Optional[Any] = Field(default=None, sa_column=Column(JSON))
