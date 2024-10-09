@@ -10,7 +10,7 @@ from app.core.s3 import client, bucket_name
 import uuid
 
 from app.api.deps import SessionDep
-from app.core.serverless import call_lambda
+from app.core.serverless import call_serverless
 from app.apimodels import (
     CreateScan,
     CreateScanResponse,
@@ -87,7 +87,7 @@ async def upload_body_photo(
     session.add(photo)
     await session.commit()
 
-    asyncio.create_task(call_lambda(str(scan_uuid), process_type="photo"))
+    asyncio.create_task(call_serverless(str(scan_uuid), process_type="photo"))
 
     return UploadResponse(successful=True)
 
@@ -128,7 +128,7 @@ async def upload_pedalling_video(
     session.add(video)
     await session.commit()
 
-    asyncio.create_task(call_lambda(str(scan_uuid), process_type="video"))
+    asyncio.create_task(call_serverless(str(scan_uuid), process_type="video"))
 
     return UploadResponse(successful=True)
 
