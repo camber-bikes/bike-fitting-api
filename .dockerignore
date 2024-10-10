@@ -1,0 +1,52 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment folders
+venv/
+.env/
+.venv/
+
+# Distribution / packaging
+*.egg-info/
+*.egg
+dist/
+build/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+*.old
+
+# IDE / Editor directories and settings
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Unit test / coverage results
+.coverage
+.tox/
+.nox/
+.cache/
+pytest_cache/
+htmlcov/
+
+# Python package manager lock files
+Pipfile.lock
+poetry.lock
+
+# Ignore Docker-related files if you don't want them in the image
+.dockerignore
+Dockerfile
+
+# Ignore environment variable files
+.env

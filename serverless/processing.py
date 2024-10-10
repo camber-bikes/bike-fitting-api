@@ -3,6 +3,8 @@ import uuid
 import cv2
 import logging
 import os
+
+import numpy as np
 from mediapipe.python.solutions import drawing_utils, pose
 import runpod
 import mediapipe as mp
@@ -27,17 +29,18 @@ type ProcessType = Union[Literal["photo"], Literal["video"]]
 class Result(BaseModel):
     height: int
     width: int
-    joints: Any
+    data: Any
 
 
 RETRIES = 3
 POSE_LANDMARKER_TASK = "pose_landmarker.task"
+SELFIE_SEGMENTER_TFLITE = "selfie_segmenter.tflite"
 
 transport = AsyncHTTPTransport(retries=RETRIES)
 
 backend_url = os.getenv("BACKEND_URL") or ""
 if backend_url == "":
-    raise Exception("BACKEND_URL environment varable not set")
+    raise Exception("BACKEND_URL environment variable not set")
 
 client = Minio(
     os.getenv("S3_ENDPOINT") or "localhost:9000",
@@ -48,12 +51,37 @@ client = Minio(
 
 bucket_name = os.getenv("S3_BUCKET") or ""
 if bucket_name == "":
-    raise Exception("S3_BUCKET environment varable not set")
+    raise Exception("S3_BUCKET environment variable not set")
 
 found = client.bucket_exists(bucket_name)
 if not found:
     client.make_bucket(bucket_name)
     logging.info(f"created bucket '{bucket_name}'")
+
+
+def download_file(scan_uuid: str, process_type: ProcessType) -> str:
+    """
+    Download the file from the URL and store it in a temporary file.
+
+    Args:
+        url (str): The URL of the file to download.
+
+    Returns:
+        str: The path to the downloaded temporary file.
+    """
+
+    tempfilename = str(uuid.uuid4()) + ".jpg"
+
+    filename = object_name(scan_uuid, process_type)
+    file = client.get_object(bucket_name, filename)
+    with open(tempfilename, "wb") as temp_file:
+        temp_file.write(file.data)
+
+    img = cv2.imread(tempfilename)
+    if img is None:
+        raise Exception(f"Downloaded file is not a valid image: {temp_file.name}")
+
+    return tempfilename
 
 
 async def call_callback(scan_uuid: str, process_type: ProcessType, result: Result):
@@ -77,7 +105,7 @@ async def process(scan_uuid: str, process_type: ProcessType):
     filename = object_name(scan_uuid, process_type)
     url = client.presigned_get_object(bucket_name, filename)
 
-    result = Result(height=0, width=0, joints=None)
+    result = Result(height=0, width=0, data=None)
 
     if process_type == "video":
         base_options = python.BaseOptions(model_asset_path=POSE_LANDMARKER_TASK)
@@ -149,7 +177,7 @@ async def process(scan_uuid: str, process_type: ProcessType):
             landmarks.append(pose_landmarks[0])
             out.write(frame)
 
-        result = Result(height=height, width=width, joints=landmarks)
+        result = Result(height=height, width=width, data=landmarks)
         cap.release()
         out.release()
         client.fput_object(
@@ -161,7 +189,46 @@ async def process(scan_uuid: str, process_type: ProcessType):
 
         os.remove(tempfilename)
 
-        cv2.destroyAllWindows()
+    elif process_type == "photo":
+        temp_file_path = download_file(
+            scan_uuid, process_type
+        )  # Download the file into a temp file
+        base_options = python.BaseOptions(model_asset_path=SELFIE_SEGMENTER_TFLITE)
+        options = vision.ImageSegmenterOptions(
+            running_mode=VisionTaskRunningMode.IMAGE,
+            base_options=base_options,
+            output_category_mask=True,
+        )
+        segmenter = vision.ImageSegmenter.create_from_options(options)
+
+        mp_image = mp.Image.create_from_file(
+            temp_file_path
+        )
+        frame = cv2.imread(temp_file_path)
+
+        segmentation_result = segmenter.segment(mp_image)
+
+        mask = segmentation_result.category_mask
+
+        mask_resized = cv2.resize(mask.numpy_view(), (frame.shape[1], frame.shape[0]))
+        mask_normalized = mask_resized.astype(np.float32) / 255.0
+        min_y = 1_000_000
+        max_y = -1
+        height = frame.shape[0]
+        width = frame.shape[1]
+
+        for i, x in enumerate(mask_normalized):
+            for _, y in enumerate(x):
+                if y == 0:
+                    if i < min_y:
+                        min_y = i
+                    if i > max_y:
+                        max_y = i
+        highest_point = height - min_y
+        lowest_point = height - max_y
+
+        result = Result(height=height, width=width, data=(highest_point, lowest_point))
+        os.remove(temp_file_path)
 
     await call_callback(scan_uuid, process_type, result)
 
