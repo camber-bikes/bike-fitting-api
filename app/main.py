@@ -3,8 +3,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from app.api.main import api_router
+from starlette.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Bike Fitting API", openapi_url="/api/openapi.json")
 
