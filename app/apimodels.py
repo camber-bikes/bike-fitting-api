@@ -8,10 +8,14 @@ class CreatePersonInformation(BaseModel):
     height_cm: int = Field(default=None, ge=50, le=300)
 
 
-class CreatePersonInformationResponse(BaseModel):
+class PersonInformationResponse(BaseModel):
     uuid: uuid.UUID
     name: str = Field(default=None, min_length=1)
     height_cm: int = Field(default=None, ge=50, le=300)
+
+
+class ScanResponse(BaseModel):
+    scan_uuid: uuid.UUID
 
 
 class CreateScan(BaseModel):

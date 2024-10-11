@@ -2,8 +2,7 @@ import asyncio
 import logging
 import random
 
-from click.testing import Result
-from fastapi import APIRouter, UploadFile
+from fastapi import APIRouter, Response, UploadFile
 from fastapi.exceptions import HTTPException
 from sqlmodel import select
 from app.core.s3 import client, bucket_name
@@ -92,6 +91,34 @@ async def upload_body_photo(
     return UploadResponse(successful=True)
 
 
+@router.get(
+    "/{scan_uuid}/photos/body.jpg", responses={200: {"content": {"image/jpg": {}}}}
+)
+async def get_body_photo(
+    session: SessionDep,
+    scan_uuid: uuid.UUID,
+) -> Response:
+    """
+    Get photo of body.
+    """
+
+    statement = select(Scan).where(Scan.uuid == scan_uuid)
+    scan = await session.exec(statement)
+    scan = scan.first()
+    if scan == None:
+        raise HTTPException(400, "scan not found")
+
+    try:
+        file = client.get_object(
+            bucket_name,
+            f"photos/body/{scan.uuid}.jpg",
+        )
+        return Response(content=file.read(), media_type="image/jpg")
+    except Exception as e:
+        logging.error(e)
+        raise HTTPException(500, "could not download file")
+
+
 @router.post("/{scan_uuid}/videos/pedalling")
 async def upload_pedalling_video(
     session: SessionDep,
@@ -133,7 +160,35 @@ async def upload_pedalling_video(
     return UploadResponse(successful=True)
 
 
-@router.post("/{scan_uuid}/callback")
+@router.get(
+    "/{scan_uuid}/videos/pedalling.mp4", responses={200: {"content": {"video/mp4": {}}}}
+)
+async def get_pedalling_video(
+    session: SessionDep,
+    scan_uuid: uuid.UUID,
+) -> Response:
+    """
+    Get video of pedalling.
+    """
+
+    statement = select(Scan).where(Scan.uuid == scan_uuid)
+    scan = await session.exec(statement)
+    scan = scan.first()
+    if scan == None:
+        raise HTTPException(400, "scan not found")
+
+    try:
+        file = client.get_object(
+            bucket_name,
+            f"videos/pedalling/{scan.uuid}.mp4",
+        )
+        return Response(content=file.read(), media_type="video/mp4")
+    except Exception as e:
+        logging.error(e)
+        raise HTTPException(500, "could not download file")
+
+
+@router.post("/{scan_uuid}/callback", tags=["callback"])
 async def process_body_photo_results(
     session: SessionDep,
     body: ProcessResults,
