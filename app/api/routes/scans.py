@@ -11,6 +11,7 @@ import uuid
 from app.api.deps import SessionDep
 from app.core.serverless import call_serverless
 from app.apimodels import (
+    VIDEO_CONTENT_TYPE,
     CreateScan,
     CreateScanResponse,
     ProcessResults,
@@ -18,7 +19,6 @@ from app.apimodels import (
     ResultResponse,
 )
 from app.dbmodels import Photo, Person, Scan, Status, Video
-
 
 router = APIRouter()
 
@@ -29,10 +29,9 @@ async def create_scan(session: SessionDep, body: CreateScan) -> CreateScanRespon
     Create new scan
     """
 
-    statement = select(Person).where(Person.uuid == body.person_uuid)
-    person = await session.exec(statement)
+    person = await session.exec(select(Person).where(Person.uuid == body.person_uuid))
     person = person.first()
-    if person == None:
+    if person is None:
         raise HTTPException(400, "person not found")
 
     scan = Scan(uuid=uuid.uuid4(), person_id=person.id)
@@ -64,10 +63,9 @@ async def upload_body_photo(
     ):
         raise HTTPException(400, "must upload a video in format jpg")
 
-    statement = select(Scan).where(Scan.uuid == scan_uuid)
-    scan = await session.exec(statement)
+    scan = await session.exec(select(Scan).where(Scan.uuid == scan_uuid))
     scan = scan.first()
-    if scan == None:
+    if scan is None:
         raise HTTPException(400, "scan not found")
 
     try:
@@ -82,7 +80,13 @@ async def upload_body_photo(
         logging.error(e)
         raise HTTPException(500, "could not upload file")
 
-    photo = Photo(scan_id=scan.id, status=Status.new)
+    res = await session.exec(select(Photo).where(Photo.scan_id == scan.id))
+    photo = res.first()
+    if photo is None:
+        photo = Photo(scan_id=scan.id, status=Status.new)
+    else:
+        photo.status = Status.new
+
     session.add(photo)
     await session.commit()
 
@@ -102,10 +106,9 @@ async def get_body_photo(
     Get photo of body.
     """
 
-    statement = select(Scan).where(Scan.uuid == scan_uuid)
-    scan = await session.exec(statement)
+    scan = await session.exec(select(Scan).where(Scan.uuid == scan_uuid))
     scan = scan.first()
-    if scan == None:
+    if scan is None:
         raise HTTPException(400, "scan not found")
 
     try:
@@ -126,34 +129,38 @@ async def upload_pedalling_video(
     scan_uuid: uuid.UUID,
 ) -> UploadResponse:
     """
-    Upload a mp4 photo of you pedalling and start the processing in the background.
+    Upload a mov video of you pedalling and start the processing in the background.
     Returns true if the upload was successfull
     """
 
-    if file.content_type != "video/mp4" or not (file.filename or "").endswith(".mp4"):
-        raise HTTPException(400, "must upload a video in format mp4")
+    if file.content_type != VIDEO_CONTENT_TYPE or not (
+        file.filename or ""
+    ).lower().endswith(".mov"):
+        raise HTTPException(400, "must upload a video in format mov")
 
-    statement = select(Scan).where(Scan.uuid == scan_uuid)
-    scan = await session.exec(statement)
+    scan = await session.exec(select(Scan).where(Scan.uuid == scan_uuid))
     scan = scan.first()
-    if scan == None:
+    if scan is None:
         raise HTTPException(400, "scan not found")
 
     try:
         client.put_object(
             bucket_name,
-            f"videos/pedalling/{scan.uuid}.mp4",
+            f"videos/pedalling/{scan.uuid}.mov",
             data=file.file,
             length=file.size or -1,
-            content_type="video/mp4",
+            content_type=VIDEO_CONTENT_TYPE,
         )
     except Exception as e:
         logging.error(e)
         raise HTTPException(500, "could not upload file")
 
-    video = Video(scan_id=scan.id, status=Status.new, process_result=None)
-    session.add(video)
-    await session.commit()
+    res = await session.exec(select(Video).where(Video.scan_id == scan.id))
+    video = res.first()
+    if video is None:
+        video = Video(scan_id=scan.id, status=Status.new)
+    else:
+        video.status = Status.new
 
     asyncio.create_task(call_serverless(str(scan_uuid), process_type="video"))
 
@@ -161,7 +168,7 @@ async def upload_pedalling_video(
 
 
 @router.get(
-    "/{scan_uuid}/videos/pedalling.mp4", responses={200: {"content": {"video/mp4": {}}}}
+    "/{scan_uuid}/videos/pedalling.mov", responses={200: {"content": {"video/mov": {}}}}
 )
 async def get_pedalling_video(
     session: SessionDep,
@@ -171,18 +178,17 @@ async def get_pedalling_video(
     Get video of pedalling.
     """
 
-    statement = select(Scan).where(Scan.uuid == scan_uuid)
-    scan = await session.exec(statement)
+    scan = await session.exec(select(Scan).where(Scan.uuid == scan_uuid))
     scan = scan.first()
-    if scan == None:
+    if scan is None:
         raise HTTPException(400, "scan not found")
 
     try:
         file = client.get_object(
             bucket_name,
-            f"videos/pedalling/{scan.uuid}.mp4",
+            f"videos/pedalling/{scan.uuid}.mov",
         )
-        return Response(content=file.read(), media_type="video/mp4")
+        return Response(content=file.read(), media_type=VIDEO_CONTENT_TYPE)
     except Exception as e:
         logging.error(e)
         raise HTTPException(500, "could not download file")
@@ -198,17 +204,15 @@ async def process_body_photo_results(
     Change the status to processed and upload the results to postgres
     """
 
-    statement = select(Scan.id).where(Scan.uuid == scan_uuid)
-    scan_id = await session.exec(statement)
+    scan_id = await session.exec(select(Scan.id).where(Scan.uuid == scan_uuid))
     scan_id = scan_id.first()
-    if scan_id == None:
+    if scan_id is None:
         raise Exception("could not find scan")
 
     if body.process_type == "photo":
-        statement = select(Photo).where(Photo.scan_id == scan_id)
-        photo = await session.exec(statement)
+        photo = await session.exec(select(Photo).where(Photo.scan_id == scan_id))
         photo = photo.first()
-        if photo == None:
+        if photo is None:
             raise Exception("could not find photo")
 
         photo.status = Status.done
@@ -216,10 +220,9 @@ async def process_body_photo_results(
 
         session.add(photo)
     elif body.process_type == "video":
-        statement = select(Video).where(Video.scan_id == scan_id)
-        video = await session.exec(statement)
+        video = await session.exec(select(Video).where(Video.scan_id == scan_id))
         video = video.first()
-        if video == None:
+        if video is None:
             raise Exception("could not find video")
 
         video.status = Status.done
@@ -246,10 +249,9 @@ async def get_result(
         ResultResponse: containing a boolean if the scan is done and optionally the change parameters of the saddle
     """
     # Commenting out the current logic for testing
-    # statement = select(Scan.result).where(Scan.uuid == scan_uuid)
-    # result = await session.exec(statement)
+    # result = await session.exec(select(Scan.result).where(Scan.uuid == scan_uuid))
     #
-    # if result == None:
+    # if result is None:
     #     return ResultResponse(done=False)
     # else:
     #     saddle_x = result["saddle_x_cm"]

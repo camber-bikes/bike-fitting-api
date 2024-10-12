@@ -1,24 +1,31 @@
 import enum
-import uuid
+import uuid as uuids
 
 from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional, TypedDict, Union
 from sqlalchemy import Column
 from sqlmodel import JSON, Enum, Field, SQLModel, Column
 
 
 class BaseTable(SQLModel):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int = Field(default=None, primary_key=True)
 
 
 class Person(BaseTable, table=True):
-    uuid: uuid.UUID
+    uuid: uuids.UUID = Field(
+        default_factory=uuids.uuid4,
+        unique=True,
+    )
     name: str
     height_cm: int
 
 
 class Scan(BaseTable, table=True):
-    uuid: uuid.UUID
-    person_id: Optional[int] = Field(foreign_key="person.id")
+    uuid: uuids.UUID = Field(
+        default_factory=uuids.uuid4,
+        unique=True,
+    )
+    person_id: Optional[int] = Field(default=None, foreign_key="person.id")
     result: Optional[Dict[Any, Any]] = Field(
         default_factory=dict, sa_column=Column(JSON)
     )
@@ -30,12 +37,12 @@ class Status(str, enum.Enum):
 
 
 class Photo(BaseTable, table=True):
-    scan_id: Optional[int] = Field(default=None, foreign_key="scan.id")
+    scan_id: int = Field(default=None, foreign_key="scan.id", unique=True)
     status: Status = Field(sa_column=Column(Enum(Status)))
     process_result: Optional[Any] = Field(default=None, sa_column=Column(JSON))
 
 
 class Video(BaseTable, table=True):
-    scan_id: Optional[int] = Field(default=None, foreign_key="scan.id")
+    scan_id: int = Field(default=None, foreign_key="scan.id", unique=True)
     status: Status = Field(sa_column=Column(Enum(Status)))
     process_result: Optional[Any] = Field(default=None, sa_column=Column(JSON))

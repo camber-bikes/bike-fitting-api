@@ -100,7 +100,7 @@ async def process(scan_uuid: str, process_type: ProcessType):
     if process_type == "photo":
         content_type = "image/jpg"
     elif process_type == "video":
-        content_type = "video/mp4"
+        content_type = "video/quicktime"
 
     filename = object_name(scan_uuid, process_type)
     url = client.presigned_get_object(bucket_name, filename)
@@ -129,8 +129,9 @@ async def process(scan_uuid: str, process_type: ProcessType):
 
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # type: ignore
 
-        tempfilename = str(uuid.uuid4()) + ".mp4"
+        tempfilename = str(uuid.uuid4()) + ".mov"
 
+        fourcc = cv2.VideoWriter_fourcc(*"jpeg")  # type: ignore
         out = cv2.VideoWriter(tempfilename, fourcc, fps, (width, height))
 
         landmarks = []
@@ -177,15 +178,16 @@ async def process(scan_uuid: str, process_type: ProcessType):
             landmarks.append(pose_landmarks[0])
             out.write(frame)
 
-        result = Result(height=height, width=width, data=landmarks)
-        cap.release()
-        out.release()
         client.fput_object(
             bucket_name,
             filename,
             tempfilename,
             content_type=content_type,
         )
+
+        result = Result(height=height, width=width, data=landmarks)
+        cap.release()
+        out.release()
 
         os.remove(tempfilename)
 
@@ -201,9 +203,7 @@ async def process(scan_uuid: str, process_type: ProcessType):
         )
         segmenter = vision.ImageSegmenter.create_from_options(options)
 
-        mp_image = mp.Image.create_from_file(
-            temp_file_path
-        )
+        mp_image = mp.Image.create_from_file(temp_file_path)
         frame = cv2.imread(temp_file_path)
 
         segmentation_result = segmenter.segment(mp_image)
@@ -246,7 +246,7 @@ def object_name(scan_uuid: str, process_type: ProcessType) -> str:
     if process_type == "photo":
         filename = f"photos/body/{scan_uuid}.jpg"
     elif process_type == "video":
-        filename = f"videos/pedalling/{scan_uuid}.mp4"
+        filename = f"videos/pedalling/{scan_uuid}.mov"
 
     return filename
 

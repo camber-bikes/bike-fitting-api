@@ -41,10 +41,9 @@ async def get_person_information(
     Get person information.
     """
 
-    statement = select(Person).where(Person.uuid == person_uuid)
-    person = await session.exec(statement)
+    person = await session.exec(select(Person).where(Person.uuid == person_uuid))
     person = person.first()
-    if person == None:
+    if person is None:
         raise HTTPException(400, "person not found")
 
     return PersonInformationResponse(
@@ -60,13 +59,11 @@ async def get_scans(session: SessionDep, person_uuid: uuid.UUID) -> list[ScanRes
     Get all scans
     """
 
-    statement = select(Person).where(Person.uuid == person_uuid)
-    person = await session.exec(statement)
+    person = await session.exec(select(Person).where(Person.uuid == person_uuid))
     person = person.first()
-    if person == None:
+    if person is None:
         raise HTTPException(400, "person not found")
 
-    statement = select(Scan).where(Scan.person_id == person.id)
-    scans = await session.exec(statement)
+    scans = await session.exec(select(Scan).where(Scan.person_id == person.id))
 
     return [ScanResponse(scan_uuid=scan.uuid) for scan in scans]
