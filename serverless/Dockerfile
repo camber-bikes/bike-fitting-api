@@ -12,6 +12,10 @@ WORKDIR /app
 
 # Copy
 COPY processing.py .
+COPY constants.py .
+COPY calculation.py .
+COPY drawing.py .
+
 COPY requirements.txt .
 
 # Install pip req

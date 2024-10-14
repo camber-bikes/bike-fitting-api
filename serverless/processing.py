@@ -1,29 +1,34 @@
 import asyncio
-import uuid
-import cv2
 import logging
 import os
+import uuid
+from typing import Any
 
-import numpy as np
-from mediapipe.python.solutions import drawing_utils, pose
-import runpod
+import cv2
 import mediapipe as mp
-
-from dotenv import load_dotenv  # DEV purposes only
-from httpx import AsyncClient, AsyncHTTPTransport
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
+import numpy as np
+import runpod
+from dotenv import load_dotenv
+from httpx import AsyncHTTPTransport, AsyncClient
+from mediapipe.tasks import python as mp_py
 from mediapipe.tasks.python.vision.core.vision_task_running_mode import (
     VisionTaskRunningMode,
 )
-from mediapipe.framework.formats import landmark_pb2
 from minio import Minio
 from pydantic import BaseModel
-from typing import Any, Literal, Union
+
+import constants
+import file_operations
+from calculation import determine_facing_direction, get_knee_angle, get_elbow_angle
+from drawing import draw_wireframe
 
 load_dotenv()
 
-type ProcessType = Union[Literal["photo"], Literal["video"]]
+
+class Frame(BaseModel):
+    knee_angle: float
+    elbow_angle: float
+    joints: Any
 
 
 class Result(BaseModel):
@@ -32,17 +37,25 @@ class Result(BaseModel):
     data: Any
 
 
-RETRIES = 3
-POSE_LANDMARKER_TASK = "pose_landmarker.task"
-SELFIE_SEGMENTER_TFLITE = "selfie_segmenter.tflite"
+class VideoData(BaseModel):
+    frames: list[Frame]
+    facing_direction: constants.FacingDirection
 
-transport = AsyncHTTPTransport(retries=RETRIES)
+
+class PhotoData(BaseModel):
+    highest_point: float
+    lowest_point: float
+
+
+frames: list[Frame] = []
+
+transport = AsyncHTTPTransport(retries=constants.RETRIES)
 
 backend_url = os.getenv("BACKEND_URL") or ""
 if backend_url == "":
     raise Exception("BACKEND_URL environment variable not set")
 
-client = Minio(
+minio_client = Minio(
     os.getenv("S3_ENDPOINT") or "localhost:9000",
     access_key=os.getenv("S3_CLIENT_ID"),
     secret_key=os.getenv("S3_CLIENT_SECRET"),
@@ -53,38 +66,15 @@ bucket_name = os.getenv("S3_BUCKET") or ""
 if bucket_name == "":
     raise Exception("S3_BUCKET environment variable not set")
 
-found = client.bucket_exists(bucket_name)
+found = minio_client.bucket_exists(bucket_name)
 if not found:
-    client.make_bucket(bucket_name)
+    minio_client.make_bucket(bucket_name)
     logging.info(f"created bucket '{bucket_name}'")
 
 
-def download_file(scan_uuid: str, process_type: ProcessType) -> str:
-    """
-    Download the file from the URL and store it in a temporary file.
-
-    Args:
-        url (str): The URL of the file to download.
-
-    Returns:
-        str: The path to the downloaded temporary file.
-    """
-
-    tempfilename = str(uuid.uuid4()) + ".jpg"
-
-    filename = object_name(scan_uuid, process_type)
-    file = client.get_object(bucket_name, filename)
-    with open(tempfilename, "wb") as temp_file:
-        temp_file.write(file.data)
-
-    img = cv2.imread(tempfilename)
-    if img is None:
-        raise Exception(f"Downloaded file is not a valid image: {temp_file.name}")
-
-    return tempfilename
-
-
-async def call_callback(scan_uuid: str, process_type: ProcessType, result: Result):
+async def call_callback(
+    scan_uuid: str, process_type: constants.ProcessType, result: Result
+):
     async with AsyncClient(transport=transport) as client:
         response = await client.post(
             backend_url + f"/api/scans/{scan_uuid}/callback",
@@ -95,21 +85,23 @@ async def call_callback(scan_uuid: str, process_type: ProcessType, result: Resul
             raise Exception(result)
 
 
-async def process(scan_uuid: str, process_type: ProcessType):
+async def process(scan_uuid: str, process_type: constants.ProcessType):
     content_type = ""
     if process_type == "photo":
         content_type = "image/jpg"
     elif process_type == "video":
-        content_type = "video/quicktime"
+        content_type = "video/mp4"
 
-    filename = object_name(scan_uuid, process_type)
-    url = client.presigned_get_object(bucket_name, filename)
+    file_name = file_operations.object_name(scan_uuid, process_type)
+    url = minio_client.presigned_get_object(bucket_name, file_name)
 
     result = Result(height=0, width=0, data=None)
 
     if process_type == "video":
-        base_options = python.BaseOptions(model_asset_path=POSE_LANDMARKER_TASK)
-        options = vision.PoseLandmarkerOptions(
+        base_options = mp_py.BaseOptions(
+            model_asset_path=constants.POSE_LANDMARKER_TASK
+        )
+        options = mp_py.vision.PoseLandmarkerOptions(
             running_mode=VisionTaskRunningMode.VIDEO,
             min_pose_detection_confidence=0.8,
             min_tracking_confidence=0.8,
@@ -117,23 +109,20 @@ async def process(scan_uuid: str, process_type: ProcessType):
             output_segmentation_masks=True,
         )
 
-        detector = vision.PoseLandmarker.create_from_options(options)
-
+        detector = mp_py.vision.PoseLandmarker.create_from_options(options)
         cap = cv2.VideoCapture(url)
+
         if not cap.isOpened():
-            raise Exception("could not open video")
+            raise Exception("Could not open video")
 
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = cap.get(cv2.CAP_PROP_FPS)
 
+        output_filename = str(uuid.uuid4()) + ".mp4"
+
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # type: ignore
-
-        tempfilename = str(uuid.uuid4()) + ".mov"
-
-        fourcc = cv2.VideoWriter_fourcc(*"jpeg")  # type: ignore
-        out = cv2.VideoWriter(tempfilename, fourcc, fps, (width, height))
-
+        out = cv2.VideoWriter(output_filename, fourcc, fps, (width, height))
         landmarks = []
 
         timestamp_ms = 0
@@ -143,65 +132,70 @@ async def process(scan_uuid: str, process_type: ProcessType):
                 print("Reached end of video or encountered an error.")
                 break
 
-            timestamp_ms = timestamp_ms + 1000 / fps
+            timestamp_ms += 1000 / fps
 
-            image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+            dimmed_frame = cv2.addWeighted(frame, 0.4, np.zeros_like(frame), 0.4, 0)
+
+            image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)  # type: ignore
             results = detector.detect_for_video(image, int(timestamp_ms))
 
             if not results.pose_landmarks:
+                out.write(dimmed_frame)
                 continue
 
-            pose_landmarks = results.pose_landmarks
+            pose_landmarks = results.pose_landmarks[0]
+            landmarks.append(pose_landmarks)
 
-            pose_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
-            pose_landmarks_proto.landmark.extend(
-                [
-                    landmark_pb2.NormalizedLandmark(
-                        x=landmark.x, y=landmark.y, z=landmark.z
-                    )
-                    for landmark in pose_landmarks[0]
-                ]
+            overlay = np.zeros_like(frame, dtype=np.uint8)
+
+            facing_direction = determine_facing_direction(pose_landmarks)
+            frame_height, frame_width, _ = frame.shape
+            frame_obj = constants.FrameObject(width=width, height=height)
+
+            draw_wireframe(overlay, pose_landmarks, facing_direction)
+            knee_angle = get_knee_angle(pose_landmarks, frame_obj, facing_direction)
+            elbow_angle = get_elbow_angle(pose_landmarks, frame_obj, facing_direction)
+
+            result_frame = cv2.addWeighted(dimmed_frame, 1, overlay, 1, 0)
+
+            out.write(result_frame)
+
+
+            single_frame = Frame(
+                knee_angle=knee_angle, elbow_angle=elbow_angle, joints=pose_landmarks
             )
+            frames.append(single_frame)
 
-            drawing_utils.draw_landmarks(
-                frame,
-                pose_landmarks_proto,
-                pose.POSE_CONNECTIONS,  # type:ignore
-                drawing_utils.DrawingSpec(
-                    color=(255, 0, 0), thickness=2, circle_radius=2
-                ),  # Joints
-                drawing_utils.DrawingSpec(
-                    color=(0, 255, 0), thickness=2, circle_radius=2
-                ),  # Connections
-            )
-
-            landmarks.append(pose_landmarks[0])
-            out.write(frame)
-
-        client.fput_object(
-            bucket_name,
-            filename,
-            tempfilename,
-            content_type=content_type,
+        video_data = VideoData(
+            frames=frames,
+            facing_direction=facing_direction,
         )
 
-        result = Result(height=height, width=width, data=landmarks)
+        result = Result(height=height, width=width, data=video_data)
         cap.release()
         out.release()
 
-        os.remove(tempfilename)
+        minio_client.fput_object(
+            bucket_name,
+            file_name,
+            output_filename,
+            content_type=content_type,
+        )
+        #os.remove(output_filename)
 
     elif process_type == "photo":
-        temp_file_path = download_file(
-            scan_uuid, process_type
-        )  # Download the file into a temp file
-        base_options = python.BaseOptions(model_asset_path=SELFIE_SEGMENTER_TFLITE)
-        options = vision.ImageSegmenterOptions(
+        temp_file_path = file_operations.download_file(
+            minio_client, bucket_name, scan_uuid, process_type
+        )
+        base_options = mp_py.BaseOptions(
+            model_asset_path=constants.SELFIE_SEGMENTER_TFLITE
+        )
+        options = mp_py.vision.ImageSegmenterOptions(
             running_mode=VisionTaskRunningMode.IMAGE,
             base_options=base_options,
             output_category_mask=True,
         )
-        segmenter = vision.ImageSegmenter.create_from_options(options)
+        segmenter = mp_py.vision.ImageSegmenter.create_from_options(options)
 
         mp_image = mp.Image.create_from_file(temp_file_path)
         frame = cv2.imread(temp_file_path)
@@ -239,16 +233,6 @@ async def serverless_job(job):
     asyncio.create_task(process(scan_uuid, process_type))
 
     return "Started processing"
-
-
-def object_name(scan_uuid: str, process_type: ProcessType) -> str:
-    filename = ""
-    if process_type == "photo":
-        filename = f"photos/body/{scan_uuid}.jpg"
-    elif process_type == "video":
-        filename = f"videos/pedalling/{scan_uuid}.mov"
-
-    return filename
 
 
 # Configure and start the RunPod serverless function

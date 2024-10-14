@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import random
 
 from fastapi import APIRouter, Response, UploadFile
 from fastapi.exceptions import HTTPException
