@@ -130,14 +130,14 @@ async def upload_pedalling_video(
     scan_uuid: uuid.UUID,
 ) -> UploadResponse:
     """
-    Upload a mov video of you pedalling and start the processing in the background.
+    Upload a mp4 video of you pedalling and start the processing in the background.
     Returns true if the upload was successfull
     """
 
     if file.content_type != VIDEO_CONTENT_TYPE or not (
         file.filename or ""
-    ).lower().endswith(".mov"):
-        raise HTTPException(400, "must upload a video in format mov")
+    ).lower().endswith(".mp4"):
+        raise HTTPException(400, "must upload a video in format mp4")
 
     scan = await session.exec(select(Scan).where(Scan.uuid == scan_uuid))
     scan = scan.first()
@@ -147,7 +147,7 @@ async def upload_pedalling_video(
     try:
         client.put_object(
             bucket_name,
-            f"videos/pedalling/{scan.uuid}.mov",
+            f"videos/pedalling/{scan.uuid}.mp4",
             data=file.file,
             length=file.size or -1,
             content_type=VIDEO_CONTENT_TYPE,
@@ -169,7 +169,7 @@ async def upload_pedalling_video(
 
 
 @router.get(
-    "/{scan_uuid}/videos/pedalling.mov", responses={200: {"content": {"video/mov": {}}}}
+    "/{scan_uuid}/videos/pedalling.mp4", responses={200: {"content": {"video/mp4": {}}}}
 )
 async def get_pedalling_video(
     session: SessionDep,
@@ -187,7 +187,7 @@ async def get_pedalling_video(
     try:
         file = client.get_object(
             bucket_name,
-            f"videos/pedalling/{scan.uuid}.mov",
+            f"videos/pedalling/{scan.uuid}.mp4",
         )
         return Response(content=file.read(), media_type=VIDEO_CONTENT_TYPE)
     except Exception as e:

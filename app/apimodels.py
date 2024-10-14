@@ -2,7 +2,7 @@ from typing import Any, Literal, Union, Optional
 import uuid
 from pydantic import BaseModel, Field
 
-VIDEO_CONTENT_TYPE = "video/quicktime"
+VIDEO_CONTENT_TYPE = "video/mp4"
 
 
 class CreatePersonInformation(BaseModel):
