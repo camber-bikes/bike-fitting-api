@@ -163,6 +163,9 @@ async def upload_pedalling_video(
     else:
         video.status = Status.new
 
+    session.add(video)
+    await session.commit()
+
     asyncio.create_task(call_serverless(str(scan_uuid), process_type="video"))
 
     return UploadResponse(successful=True)
