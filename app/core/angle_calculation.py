@@ -1,3 +1,4 @@
+from mediapipe.python.solutions import pose
 import numpy as np
 import mediapipe as mp
 
@@ -38,22 +39,22 @@ def get_knee_angle(landmarks: RepeatedCompositeFieldContainer, frame) -> int:
     Returns:
     angle
     """
-    mp_pose = mp.solutions.pose
+
     lm = landmarks
     width = frame.width
     height = frame.height
 
     hip = [
-        lm[mp_pose.PoseLandmark.RIGHT_HIP.value].x * width,
-        lm[mp_pose.PoseLandmark.RIGHT_HIP.value].y * height,
+        lm[pose.PoseLandmark.RIGHT_HIP.value].x * width,
+        lm[pose.PoseLandmark.RIGHT_HIP.value].y * height,
     ]
     knee = [
-        lm[mp_pose.PoseLandmark.RIGHT_KNEE.value].x * width,
-        lm[mp_pose.PoseLandmark.RIGHT_KNEE.value].y * height,
+        lm[pose.PoseLandmark.RIGHT_KNEE.value].x * width,
+        lm[pose.PoseLandmark.RIGHT_KNEE.value].y * height,
     ]
     ankle = [
-        lm[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x * width,
-        lm[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y * height,
+        lm[pose.PoseLandmark.RIGHT_ANKLE.value].x * width,
+        lm[pose.PoseLandmark.RIGHT_ANKLE.value].y * height,
     ]
 
     hip_array = np.array(hip)

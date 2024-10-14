@@ -5,6 +5,7 @@ import random
 from fastapi import APIRouter, Response, UploadFile
 from fastapi.exceptions import HTTPException
 from sqlmodel import select
+from app.core.analysis import run_analysis
 from app.core.s3 import client, bucket_name
 import uuid
 
@@ -18,7 +19,7 @@ from app.apimodels import (
     UploadResponse,
     ResultResponse,
 )
-from app.dbmodels import Photo, Person, Scan, Status, Video
+from app.dbmodels import Photo, Person, Scan, ScanResult, Status, Video
 
 router = APIRouter()
 
@@ -232,7 +233,8 @@ async def process_body_photo_results(
 
     await session.commit()
 
-    # FIXME: asynchronously run processing task if video
+    if body.process_type == "video":
+        asyncio.create_task(run_analysis(scan_uuid))
 
 
 @router.get("/{scan_uuid}/result")
@@ -248,22 +250,12 @@ async def get_result(
     Returns:
         ResultResponse: containing a boolean if the scan is done and optionally the change parameters of the saddle
     """
-    # Commenting out the current logic for testing
-    # result = await session.exec(select(Scan.result).where(Scan.uuid == scan_uuid))
-    #
-    # if result is None:
-    #     return ResultResponse(done=False)
-    # else:
-    #     saddle_x = result["saddle_x_cm"]
-    #     saddle_y = result["saddle_y_cm"]
-    #     return ResultResponse(done=True, saddle_x_cm=saddle_x, saddle_y_cm=saddle_y)
 
-    # Random logic for testing purposes
-    is_done = random.choice([True, False])
-
-    if not is_done:
+    res = await session.exec(select(Scan.result).where(Scan.uuid == scan_uuid))
+    result: ScanResult | None = res.first()
+    if result is None:
         return ResultResponse(done=False)
-    else:
-        saddle_x = random.uniform(1.0, 10.0)  # Random example value for saddle_x_cm
-        saddle_y = random.uniform(1.0, 10.0)  # Random example value for saddle_y_cm
-        return ResultResponse(done=True, saddle_x_cm=saddle_x, saddle_y_cm=saddle_y)
+
+    saddle_x = result["saddle_x_cm"]
+    saddle_y = result["saddle_y_cm"]
+    return ResultResponse(done=True, saddle_x_cm=saddle_x, saddle_y_cm=saddle_y)

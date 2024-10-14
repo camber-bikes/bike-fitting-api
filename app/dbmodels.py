@@ -1,8 +1,7 @@
 import enum
 import uuid as uuids
 
-from typing import Any, Dict, Optional
-from typing import Any, Dict, Literal, Optional, TypedDict, Union
+from typing import Any, Literal, Optional, TypedDict, Union
 from sqlalchemy import Column
 from sqlmodel import JSON, Enum, Field, SQLModel, Column
 
@@ -26,9 +25,7 @@ class Scan(BaseTable, table=True):
         unique=True,
     )
     person_id: Optional[int] = Field(default=None, foreign_key="person.id")
-    result: Optional[Dict[Any, Any]] = Field(
-        default_factory=dict, sa_column=Column(JSON)
-    )
+    result: Optional[Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
 
 class Status(str, enum.Enum):
@@ -46,3 +43,34 @@ class Video(BaseTable, table=True):
     scan_id: int = Field(default=None, foreign_key="scan.id", unique=True)
     status: Status = Field(sa_column=Column(Enum(Status)))
     process_result: Optional[Any] = Field(default=None, sa_column=Column(JSON))
+
+
+class PhotoResult(TypedDict):
+    width: int
+    height: int
+    data: tuple[int, int]  # Maximum, minimum
+
+
+type FacingDirection = Union[Literal["left"], Literal["right"]]
+
+
+class Frame(TypedDict):
+    knee_angle: float
+    elbow_angle: float
+    joints: Any
+
+
+class VideoData(TypedDict):
+    frames: list[Frame]
+    facing_direction: FacingDirection
+
+
+class VideoResult(TypedDict):
+    width: int
+    height: int
+    data: VideoData
+
+
+class ScanResult(TypedDict):
+    saddle_x_cm: float
+    saddle_y_cm: float
