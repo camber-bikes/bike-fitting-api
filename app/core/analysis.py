@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from typing import TypedDict
 from math import sqrt
 import uuid
@@ -37,8 +38,8 @@ class Selector(TypedDict):
 
 
 class Point(BaseModel):
-    x: int
-    y: int
+    x: float
+    y: float
 
     def to_np(self) -> np.ndarray:
         """
@@ -46,6 +47,10 @@ class Point(BaseModel):
         """
 
         return np.array([self.x, self.y])
+
+
+def point_from_dict(d: dict) -> Point:
+    return Point(x=d["x"], y=d["y"])
 
 
 CYCLING_KNEE_RANGE = (140, 150)
@@ -80,36 +85,25 @@ async def wait_until_both_ready(session: AsyncSession, scan_id: int) -> None:
         TimeoutException: If the status check exceeds the timeout.
     """
 
-    gathered = asyncio.gather(
-        wait_until_photo_ready(session, scan_id),
-        wait_until_video_ready(session, scan_id),
-    )
+    gathered = asyncio.create_task(wait_until_media_ready(session, scan_id))
     await asyncio.wait_for(gathered, timeout=TIMEOUT_AFTER_S)
 
 
-async def wait_until_photo_ready(session: AsyncSession, scan_id: int) -> None:
+async def wait_until_media_ready(session: AsyncSession, scan_id: int) -> None:
     """
-    Wait until the photo processing is done.
+    Wait until the photo and video processing is done.
     """
 
-    status = await get_photo_status(session, scan_id)
-    while status != Status.done:
+    photo_status = await get_photo_status(session, scan_id)
+    video_status = await get_video_status(session, scan_id)
+    while photo_status != Status.done or video_status != Status.done:
+        logging.debug("waiting for video and photo to be uploaded")
         await asyncio.sleep(REFETCH_EVERY_S)
-        status = await get_photo_status(session, scan_id)
+        photo_status = await get_photo_status(session, scan_id)
+        video_status = await get_video_status(session, scan_id)
 
 
-async def wait_until_video_ready(session: AsyncSession, scan_id: int) -> None:
-    """
-    Wait until the video processing is done.
-    """
-
-    status = await get_video_status(session, scan_id)
-    while status != Status.done:
-        await asyncio.sleep(REFETCH_EVERY_S)
-        status = await get_video_status(session, scan_id)
-
-
-async def get_video_status(session: AsyncSession, scan_id: int) -> Status:
+async def get_video_status(session: AsyncSession, scan_id: int) -> Status | None:
     """
     Retrieve the status of a video associated with a scan.
 
@@ -125,10 +119,14 @@ async def get_video_status(session: AsyncSession, scan_id: int) -> Status:
         select(Video.status).where(Video.scan_id == scan_id)
     )
     video_status = video_status.one()
+
+    if video_status == None:
+        return None
+
     return Status[video_status]
 
 
-async def get_photo_status(session: AsyncSession, scan_id: int) -> Status:
+async def get_photo_status(session: AsyncSession, scan_id: int) -> Status | None:
     """
     Retrieve the status of a photo associated with a scan.
 
@@ -143,7 +141,11 @@ async def get_photo_status(session: AsyncSession, scan_id: int) -> Status:
     photo_status = await session.exec(
         select(Photo.status).where(Photo.scan_id == scan_id)
     )
-    photo_status = photo_status.one()
+    photo_status = photo_status.first()
+
+    if photo_status == None:
+        return None
+
     return Status[photo_status]
 
 
@@ -288,9 +290,9 @@ def get_knee_values(
         A tuple of three Points: ankle, knee, and hip.
     """
 
-    foot: Point = joints[SELECTORS[facing_direction]["ANKLE"]]
-    knee: Point = joints[SELECTORS[facing_direction]["KNEE"]]
-    hip: Point = joints[SELECTORS[facing_direction]["HIP"]]
+    foot: Point = point_from_dict(joints[SELECTORS[facing_direction]["ANKLE"]])
+    knee: Point = point_from_dict(joints[SELECTORS[facing_direction]["KNEE"]])
+    hip: Point = point_from_dict(joints[SELECTORS[facing_direction]["HIP"]])
 
     return (foot, knee, hip)
 
@@ -355,7 +357,7 @@ def is_in_range(x: float, from_to: tuple[float, float]) -> bool:
     return from_to[0] <= x and x <= from_to[1]
 
 
-async def run_analysis(scan_uuid: uuid.UUID) -> ScanResult:
+async def run_analysis(scan_uuid: uuid.UUID):
     """
     Perform an analysis of a scan to calculate the optimal saddle position.
 
@@ -402,8 +404,12 @@ async def run_analysis(scan_uuid: uuid.UUID) -> ScanResult:
             + lower_leg_length_px**2
             + 2 * thigh_length_px * lower_leg_length_px * BEST_CYCLING_KNEE_ANGLE
         )
+
         saddle_length_diff_px = new_saddle_length_px - saddle_vec_length_px
 
         pixel_to_cm_ratio = get_px_to_cm_ratio(person, photo_result)
         saddle_length_diff_cm = pixel_to_cm_ratio * saddle_length_diff_px
-        return {"saddle_x_cm": 0, "saddle_y_cm": saddle_length_diff_cm}
+
+        scan.result = {"saddle_x_cm": 0, "saddle_y_cm": saddle_length_diff_cm}
+        session.add(scan)
+        await session.commit()
