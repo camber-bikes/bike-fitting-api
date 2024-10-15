@@ -15,6 +15,7 @@ COPY processing.py .
 COPY constants.py .
 COPY calculation.py .
 COPY drawing.py .
+COPY file_operations.py .
 
 COPY requirements.txt .
 
