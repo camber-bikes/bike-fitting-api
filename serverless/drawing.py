@@ -3,7 +3,6 @@ import numpy as np
 from mediapipe.python.solutions import pose
 
 import constants
-# from serverless.calculation import calculate_angle
 
 
 def draw_knee_angle_arc(frame, hip, knee, ankle):

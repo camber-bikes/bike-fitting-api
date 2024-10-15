@@ -5,6 +5,9 @@ load_dotenv()
 from fastapi import FastAPI
 from app.api.main import api_router
 from starlette.middleware.cors import CORSMiddleware
+from icecream import ic
+
+ic.disable()
 
 app = FastAPI(title="Bike Fitting API", openapi_url="/api/openapi.json")
 

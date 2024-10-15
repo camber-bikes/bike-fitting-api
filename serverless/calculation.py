@@ -2,6 +2,8 @@ import mediapipe as mp
 import numpy as np
 from mediapipe.tasks.python.components.containers.landmark import NormalizedLandmark
 
+from constants import FacingDirection
+
 
 def get_knee_angle(landmarks: list[NormalizedLandmark], frame, facing_direction) -> int:
     """
@@ -133,7 +135,7 @@ def calculate_angle(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> int:
     return angle
 
 
-def determine_facing_direction(landmarks: list[NormalizedLandmark]) -> str:
+def determine_facing_direction(landmarks: list[NormalizedLandmark]) -> FacingDirection:
     """
     Determines if the person is facing left or right based on arm positions relative to the shoulders.
     Args:

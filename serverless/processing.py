@@ -17,7 +17,14 @@ from mediapipe.tasks.python.vision.core.vision_task_running_mode import (
 from minio import Minio
 from pydantic import BaseModel
 
-import constants
+from constants import (
+    POSE_LANDMARKER_TASK,
+    RETRIES,
+    SELFIE_SEGMENTER_TFLITE,
+    FacingDirection,
+    FrameObject,
+    ProcessType,
+)
 import file_operations
 from calculation import determine_facing_direction, get_knee_angle, get_elbow_angle
 from drawing import draw_wireframe
@@ -39,7 +46,7 @@ class Result(BaseModel):
 
 class VideoData(BaseModel):
     frames: list[Frame]
-    facing_direction: constants.FacingDirection
+    facing_direction: FacingDirection
 
 
 class PhotoData(BaseModel):
@@ -49,7 +56,7 @@ class PhotoData(BaseModel):
 
 frames: list[Frame] = []
 
-transport = AsyncHTTPTransport(retries=constants.RETRIES)
+transport = AsyncHTTPTransport(retries=RETRIES)
 
 backend_url = os.getenv("BACKEND_URL") or ""
 if backend_url == "":
@@ -72,9 +79,7 @@ if not found:
     logging.info(f"created bucket '{bucket_name}'")
 
 
-async def call_callback(
-    scan_uuid: str, process_type: constants.ProcessType, result: Result
-):
+async def call_callback(scan_uuid: str, process_type: ProcessType, result: Result):
     async with AsyncClient(transport=transport) as client:
         response = await client.post(
             backend_url + f"/api/scans/{scan_uuid}/callback",
@@ -85,7 +90,7 @@ async def call_callback(
             raise Exception(result)
 
 
-async def process(scan_uuid: str, process_type: constants.ProcessType):
+async def process(scan_uuid: str, process_type: ProcessType):
     content_type = ""
     if process_type == "photo":
         content_type = "image/jpg"
@@ -99,8 +104,8 @@ async def process(scan_uuid: str, process_type: constants.ProcessType):
 
     if process_type == "video":
         base_options = mp_py.BaseOptions(
-            model_asset_path=constants.POSE_LANDMARKER_TASK,
-            delegate=mp.tasks.BaseOptions.Delegate.GPU
+            model_asset_path=POSE_LANDMARKER_TASK,
+            delegate=mp.tasks.BaseOptions.Delegate.GPU,
         )
         options = mp_py.vision.PoseLandmarkerOptions(
             running_mode=VisionTaskRunningMode.VIDEO,
@@ -127,6 +132,7 @@ async def process(scan_uuid: str, process_type: constants.ProcessType):
         landmarks = []
 
         timestamp_ms = 0
+        facing_direction: FacingDirection = "left"
         while cap.isOpened():
             success, frame = cap.read()
             if not success:
@@ -150,8 +156,7 @@ async def process(scan_uuid: str, process_type: constants.ProcessType):
             overlay = np.zeros_like(frame, dtype=np.uint8)
 
             facing_direction = determine_facing_direction(pose_landmarks)
-            frame_height, frame_width, _ = frame.shape
-            frame_obj = constants.FrameObject(width=width, height=height)
+            frame_obj = FrameObject(width=width, height=height)
 
             draw_wireframe(overlay, pose_landmarks, facing_direction)
             knee_angle = get_knee_angle(pose_landmarks, frame_obj, facing_direction)
@@ -160,7 +165,6 @@ async def process(scan_uuid: str, process_type: constants.ProcessType):
             result_frame = cv2.addWeighted(dimmed_frame, 1, overlay, 1, 0)
 
             out.write(result_frame)
-
 
             single_frame = Frame(
                 knee_angle=knee_angle, elbow_angle=elbow_angle, joints=pose_landmarks
@@ -182,15 +186,12 @@ async def process(scan_uuid: str, process_type: constants.ProcessType):
             output_filename,
             content_type=content_type,
         )
-        #os.remove(output_filename)
 
     elif process_type == "photo":
         temp_file_path = file_operations.download_file(
             minio_client, bucket_name, scan_uuid, process_type
         )
-        base_options = mp_py.BaseOptions(
-            model_asset_path=constants.SELFIE_SEGMENTER_TFLITE
-        )
+        base_options = mp_py.BaseOptions(model_asset_path=SELFIE_SEGMENTER_TFLITE)
         options = mp_py.vision.ImageSegmenterOptions(
             running_mode=VisionTaskRunningMode.IMAGE,
             base_options=base_options,

@@ -136,7 +136,9 @@ async def upload_pedalling_video(
     Converts mov to mp4 if necessary. Returns true if the upload was successful.
     """
     # Ensure the uploaded file is either mp4 or mov
-    if not file.content_type.startswith(VIDEO_CONTENT_TYPE) or not (file.filename or "").lower().endswith((".mp4", ".mov")):
+    if not file.content_type.startswith(VIDEO_CONTENT_TYPE) or not (
+        file.filename or ""
+    ).lower().endswith((".mp4", ".mov")):
         raise HTTPException(400, "must upload a video in format mp4 or mov")
 
     # Fetch the scan
@@ -165,8 +167,19 @@ async def upload_pedalling_video(
         try:
             # Convert mov to mp4 using ffmpeg
             subprocess.run(
-                ["ffmpeg", "-i", temp_file_path, "-c:v", "libx264", "-crf", "23", "-preset", "veryfast", output_file_path],
-                check=True
+                [
+                    "ffmpeg",
+                    "-i",
+                    temp_file_path,
+                    "-c:v",
+                    "libx264",
+                    "-crf",
+                    "23",
+                    "-preset",
+                    "veryfast",
+                    output_file_path,
+                ],
+                check=True,
             )
         except subprocess.CalledProcessError as e:
             logging.error(f"ffmpeg conversion error: {e}")
@@ -209,7 +222,6 @@ async def upload_pedalling_video(
     asyncio.create_task(call_serverless(str(scan_uuid), process_type="video"))
 
     return UploadResponse(successful=True)
-
 
 
 @router.get(
