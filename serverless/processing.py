@@ -99,7 +99,8 @@ async def process(scan_uuid: str, process_type: constants.ProcessType):
 
     if process_type == "video":
         base_options = mp_py.BaseOptions(
-            model_asset_path=constants.POSE_LANDMARKER_TASK
+            model_asset_path=constants.POSE_LANDMARKER_TASK,
+            delegate=mp.tasks.BaseOptions.Delegate.GPU
         )
         options = mp_py.vision.PoseLandmarkerOptions(
             running_mode=VisionTaskRunningMode.VIDEO,
