@@ -258,7 +258,7 @@ async def serverless_job(job):
     process_type = job["input"]["process_type"]
     scan_uuid = job["input"]["scan_uuid"]
     asyncio.create_task(process(scan_uuid, process_type))
-    asyncio.create_task(smi())
+    #asyncio.create_task(smi())
     return "Started processing"
 
 
