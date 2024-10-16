@@ -1,8 +1,5 @@
 import asyncio
 import logging
-import os
-import shutil
-import subprocess
 
 from fastapi import APIRouter, Response, UploadFile
 from fastapi.exceptions import HTTPException
@@ -64,7 +61,7 @@ async def upload_body_photo(
         (file.filename or "").endswith(".jpg")
         or (file.filename or "").endswith(".jpeg")
     ):
-        raise HTTPException(400, "must upload a video in format jpg")
+        raise HTTPException(400, "must upload a photo in format jpg")
 
     scan = await session.exec(select(Scan).where(Scan.uuid == scan_uuid))
     scan = scan.first()
@@ -93,7 +90,9 @@ async def upload_body_photo(
     session.add(photo)
     await session.commit()
 
-    asyncio.create_task(call_serverless(str(scan_uuid), process_type="photo"))
+    extension = file.filename.split(".")[-1]
+
+    asyncio.create_task(call_serverless(str(scan_uuid), process_type="photo", file_extension=extension))
 
     return UploadResponse(successful=True)
 
@@ -132,82 +131,33 @@ async def upload_pedalling_video(
     scan_uuid: uuid.UUID,
 ) -> UploadResponse:
     """
-    Upload an mp4 or mov video of you pedalling and start the processing in the background.
-    Converts mov to mp4 if necessary. Returns true if the upload was successful.
+    Upload a mp4 video of you pedalling and start the processing in the background.
+    Returns true if the upload was successful.
     """
-    # Ensure the uploaded file is either mp4 or mov
+
     if not file.content_type.startswith(VIDEO_CONTENT_TYPE) or not (
         file.filename or ""
     ).lower().endswith((".mp4", ".mov")):
         raise HTTPException(400, "must upload a video in format mp4 or mov")
+    extension = file.filename.split(".")[-1]
 
-    # Fetch the scan
     scan = await session.exec(select(Scan).where(Scan.uuid == scan_uuid))
     scan = scan.first()
     if scan is None:
         raise HTTPException(400, "scan not found")
 
-    # Create a random UUID filename for the temporary file
-    temp_filename = f"{uuid.uuid4()}{os.path.splitext(file.filename)[1]}"
-    temp_file_path = os.path.join("/tmp", temp_filename)
-
-    # Store the uploaded file on disk using the UUID-based filename
     try:
-        with open(temp_file_path, "wb") as temp_file:
-            shutil.copyfileobj(file.file, temp_file)
-    except Exception as e:
-        logging.error(f"Error saving uploaded file: {e}")
-        raise HTTPException(500, "could not save uploaded file")
-
-    # Convert .mov to .mp4 if necessary
-    output_file_path = temp_file_path
-    if temp_file_path.lower().endswith(".mov"):
-        # Create a new UUID for the output mp4 file
-        output_file_path = os.path.join("/tmp", f"{uuid.uuid4()}.mp4")
-        try:
-            # Convert mov to mp4 using ffmpeg
-            subprocess.run(
-                [
-                    "ffmpeg",
-                    "-i",
-                    temp_file_path,
-                    "-c:v",
-                    "libx264",
-                    "-crf",
-                    "23",
-                    "-preset",
-                    "veryfast",
-                    output_file_path,
-                ],
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            logging.error(f"ffmpeg conversion error: {e}")
-            raise HTTPException(500, "Error converting mov to mp4")
-
-    # Upload the (converted) mp4 file to your storage
-    try:
-        with open(output_file_path, "rb") as mp4_file:
-            client.put_object(
-                bucket_name,
-                f"videos/pedalling/{scan.uuid}.mp4",
-                data=mp4_file,
-                length=os.path.getsize(output_file_path),  # Get the size of the file
-                content_type=VIDEO_CONTENT_TYPE,
-            )
+        client.put_object(
+            bucket_name,
+            f"videos/pedalling/{scan.uuid}.{extension}",
+            data=file.file,
+            length=file.size or -1,
+            content_type=VIDEO_CONTENT_TYPE,
+        )
     except Exception as e:
         logging.error(e)
         raise HTTPException(500, "could not upload file")
 
-    # Clean up temporary files
-    try:
-        os.remove(temp_file_path)
-        if temp_file_path != output_file_path:
-            os.remove(output_file_path)
-    except Exception as cleanup_error:
-        logging.error(f"Error cleaning up temporary files: {cleanup_error}")
-
-    # Update video status in the database
     res = await session.exec(select(Video).where(Video.scan_id == scan.id))
     video = res.first()
     if video is None:
@@ -218,8 +168,9 @@ async def upload_pedalling_video(
     session.add(video)
     await session.commit()
 
-    # Start the background processing
-    asyncio.create_task(call_serverless(str(scan_uuid), process_type="video"))
+    asyncio.create_task(
+        call_serverless(str(scan_uuid), process_type="video", file_extension=extension)
+    )
 
     return UploadResponse(successful=True)
 

@@ -12,9 +12,17 @@ RETRIES = 3
 transport = AsyncHTTPTransport(retries=RETRIES)
 
 
-async def call_serverless(scan_uuid: str, process_type: ProcessType) -> None:
+async def call_serverless(
+    scan_uuid: str, process_type: ProcessType, file_extension: str
+) -> None:
     async with AsyncClient(transport=transport) as client:
-        content = {"input": {"process_type": process_type, "scan_uuid": scan_uuid}}
+        content = {
+            "input": {
+                "process_type": process_type,
+                "scan_uuid": scan_uuid,
+                "file_extension": file_extension,
+            }
+        }
         result = await client.post(
             serverless_url + "/runsync",
             json=content,

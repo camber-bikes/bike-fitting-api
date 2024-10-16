@@ -5,8 +5,7 @@ from minio.api import Minio
 
 import constants
 
-
-def download_file(
+def download_image(
     minio_client: Minio,
     bucket_name: str,
     scan_uuid: str,
@@ -38,21 +37,22 @@ def download_file(
 
     return temp_file_name
 
-
-def object_name(scan_uuid: str, process_type: constants.ProcessType) -> str:
+def object_name(scan_uuid: str, original_extension: str) -> str:
     """
-    Gets the name of either the photo or video
+    Gets the name of the object (photo or video) based on the provided extension.
     Args:
         scan_uuid (str): uuid of the scan as a string.
-        process_type (ProcessType): either "photo" or "video".
+        original_extension (str): file extension.
 
     Returns:
         str: name of the object
     """
-    file_name = ""
-    if process_type == "photo":
-        file_name = f"photos/body/{scan_uuid}.jpg"
-    elif process_type == "video":
-        file_name = f"videos/pedalling/{scan_uuid}.mp4"
+
+    if original_extension in ["jpg", "jpeg", "png"]:
+        file_name = f"photos/body/{scan_uuid}.{original_extension}"
+    elif original_extension in [".mp4", ".mov"]:
+        file_name = f"videos/pedalling/{scan_uuid}{original_extension}"
+    else:
+        raise Exception(f"Unsupported file extension: {original_extension}")
 
     return file_name
