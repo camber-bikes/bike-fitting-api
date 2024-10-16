@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36" version="24.7.17">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0" version="24.7.17">
   <diagram name="Page-1" id="Mmq67-78MIHL7ZcV66Hz">
-    <mxGraphModel dx="2097" dy="793" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="3457" dy="1438" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -53,7 +53,7 @@
           <mxGeometry x="1253.3400000000001" y="496.88" width="76.66" height="43.12" as="geometry" />
         </mxCell>
         <mxCell id="Sfq1RslhefIw9rJTZr1K-33" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fassets.stickpng.com%2Fimages%2F62a4bbf6fdee15d2905007bb.png&amp;f=1&amp;nofb=1&amp;ipt=e678b955575d0c411a244a5f0dc7d9bad13e627a943470133b472022b55b5fc1&amp;ipo=images;" parent="1" vertex="1">
-          <mxGeometry x="1154.17" y="520" width="55" height="55" as="geometry" />
+          <mxGeometry x="1110" y="490.94" width="55" height="55" as="geometry" />
         </mxCell>
         <mxCell id="Sfq1RslhefIw9rJTZr1K-39" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.25;exitDx=0;exitDy=0;" parent="1" source="Sfq1RslhefIw9rJTZr1K-7" target="Sfq1RslhefIw9rJTZr1K-19" edge="1">
           <mxGeometry relative="1" as="geometry">
@@ -97,6 +97,9 @@
               <mxPoint x="960" y="372" />
             </Array>
           </mxGeometry>
+        </mxCell>
+        <mxCell id="QVMrZdTNehyHMbTmN6CJ-1" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/FFmpeg_Logo_new.svg/640px-FFmpeg_Logo_new.svg.png;" vertex="1" parent="1">
+          <mxGeometry x="1196" y="550" width="116.28" height="31.25" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
