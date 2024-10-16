@@ -80,6 +80,7 @@ if not found:
 
 
 async def call_callback(scan_uuid: str, process_type: ProcessType, result: Result):
+    logging.info("SENDING CALLBACK....")
     async with AsyncClient(transport=transport) as client:
         response = await client.post(
             backend_url + f"/api/scans/{scan_uuid}/callback",
@@ -88,6 +89,7 @@ async def call_callback(scan_uuid: str, process_type: ProcessType, result: Resul
         )
         if response.status_code != 200:
             raise Exception(result)
+        logging.info("SUCCESSFULLY CALLED CALLBACK")
 
 
 async def process(scan_uuid: str, process_type: ProcessType):
@@ -103,6 +105,7 @@ async def process(scan_uuid: str, process_type: ProcessType):
     result = Result(height=0, width=0, data=None)
 
     if process_type == "video":
+        logging.info("VIDEO")
         base_options = mp_py.BaseOptions(
             model_asset_path=POSE_LANDMARKER_TASK,
             delegate=mp.tasks.BaseOptions.Delegate.GPU,
@@ -136,7 +139,7 @@ async def process(scan_uuid: str, process_type: ProcessType):
         while cap.isOpened():
             success, frame = cap.read()
             if not success:
-                print("Reached end of video or encountered an error.")
+                logging.info("REACHED END OF VIDEO")
                 break
 
             timestamp_ms += 1000 / fps
@@ -171,6 +174,9 @@ async def process(scan_uuid: str, process_type: ProcessType):
             )
             frames.append(single_frame)
 
+        logging.info("DONE WITH DRAWING VIDEO")
+
+
         video_data = VideoData(
             frames=frames,
             facing_direction=facing_direction,
@@ -187,10 +193,17 @@ async def process(scan_uuid: str, process_type: ProcessType):
             content_type=content_type,
         )
 
+        logging.info("UPLOADED VIDEO TO S3")
+
+
         os.remove(output_filename)
+
+        logging.info("DELETED TEMPORARY FILE")
 
 
     elif process_type == "photo":
+        logging.info("PHOTO")
+
         temp_file_path = file_operations.download_file(
             minio_client, bucket_name, scan_uuid, process_type
         )
@@ -226,8 +239,13 @@ async def process(scan_uuid: str, process_type: ProcessType):
         highest_point = height - min_y
         lowest_point = height - max_y
 
+        logging.info("SUCCESSFULLY CALCULATED HIGHEST AND LOWEST POINT: " + str(highest_point) + " " + str(lowest_point))
+
         result = Result(height=height, width=width, data=(highest_point, lowest_point))
         os.remove(temp_file_path)
+
+        logging.info("DELETED TEMPORARY PHOTO")
+
 
     await call_callback(scan_uuid, process_type, result)
 
