@@ -411,16 +411,30 @@ async def run_analysis(scan_uuid: uuid.UUID):
         photo_result = await get_photo_result(session, scan.id)
         video_result = await get_video_result(session, scan.id)
         person = await get_person(session, scan)
+        frames = video_result["data"]["frames"]
 
         ic(photo_result)
         ic(video_result["height"])
         ic(video_result["width"])
         ic(video_result["data"]["facing_direction"])
-        ic(video_result["data"]["frames"][0])
+
+        if len(frames) == 0:
+            ic("no frames with joints")
+            scan_result: ScanResult = {
+                "saddle_x_cm": 0,
+                "saddle_y_cm": 0,
+            }
+
+            scan.result = scan_result
+
+            session.add(scan)
+            await session.commit()
+
+            return
+
+        ic(frames[0])
 
         ic("got all results")
-
-        frames = video_result["data"]["frames"]
 
         # TODO: check if maybe lowest point of ankle and/or foot is better
         _, max_angle_frame = get_min_max_frames(
@@ -446,7 +460,17 @@ async def run_analysis(scan_uuid: uuid.UUID):
 
         if is_in_range(knee_angle, CYCLING_KNEE_RANGE):
             ic("knee angle is in range")
-            return {"saddle_x_cm": 0, "saddle_y_cm": 0}
+            scan_result: ScanResult = {
+                "saddle_x_cm": 0,
+                "saddle_y_cm": 0,
+            }
+
+            scan.result = scan_result
+
+            session.add(scan)
+            await session.commit()
+
+            return
 
         ic("knee angle not in range")
 
