@@ -17,6 +17,7 @@ from app.dbmodels import (
     Photo,
     PhotoResult,
     Scan,
+    ScanResult,
     Status,
     Video,
     VideoResult,
@@ -486,7 +487,12 @@ async def run_analysis(scan_uuid: uuid.UUID):
         saddle_length_diff_cm = pixel_to_cm_ratio * saddle_lentgh_diff_px
         ic(saddle_length_diff_cm)
 
-        scan.result = {"saddle_x_cm": 0, "saddle_y_cm": saddle_length_diff_cm}
+        scan_result: ScanResult = {
+            "saddle_x_cm": 0,
+            "saddle_y_cm": saddle_length_diff_cm,
+        }
+
+        scan.result = scan_result
 
         session.add(scan)
         await session.commit()

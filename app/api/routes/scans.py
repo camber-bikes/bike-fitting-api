@@ -309,7 +309,7 @@ async def get_result(
 
     res = await session.exec(select(Scan.result).where(Scan.uuid == scan_uuid))
     result: ScanResult | None = res.first()
-    if result is None:
+    if result is None or result == {}:
         return ResultResponse(done=False)
 
     saddle_x = result["saddle_x_cm"]
