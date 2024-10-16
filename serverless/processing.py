@@ -117,6 +117,7 @@ async def process(scan_uuid: str, process_type: ProcessType):
             base_options=base_options,
             output_segmentation_masks=True,
         )
+        logging.info(f"GPU Delegate: {mp.tasks.BaseOptions.Delegate.GPU}")
 
         detector = mp_py.vision.PoseLandmarker.create_from_options(options)
         cap = cv2.VideoCapture(url)
@@ -133,6 +134,8 @@ async def process(scan_uuid: str, process_type: ProcessType):
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # type: ignore
         out = cv2.VideoWriter(output_filename, fourcc, fps, (width, height))
         landmarks = []
+
+        logging.info(f"GPU Delegate: {mp.tasks.BaseOptions.Delegate.GPU}")
 
         timestamp_ms = 0
         facing_direction: FacingDirection = "left"
@@ -175,6 +178,7 @@ async def process(scan_uuid: str, process_type: ProcessType):
             frames.append(single_frame)
 
         logging.info("DONE WITH DRAWING VIDEO")
+        logging.info(f"GPU Delegate: {mp.tasks.BaseOptions.Delegate.GPU}")
 
 
         video_data = VideoData(
