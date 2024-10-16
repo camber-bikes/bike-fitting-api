@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import subprocess
 import uuid
 from typing import Any
 
@@ -28,7 +29,7 @@ from constants import (
 import file_operations
 from calculation import determine_facing_direction, get_knee_angle, get_elbow_angle
 from drawing import draw_wireframe
-from gpu import smi
+
 load_dotenv()
 
 
@@ -92,164 +93,212 @@ async def call_callback(scan_uuid: str, process_type: ProcessType, result: Resul
         logging.info("SUCCESSFULLY CALLED CALLBACK")
 
 
-async def process(scan_uuid: str, process_type: ProcessType):
-    content_type = ""
-    if process_type == "photo":
-        content_type = "image/jpg"
-    elif process_type == "video":
-        content_type = "video/mp4"
+def convert_mov_to_mp4(scan_uuid, tmp_file):
+    logging.info("DETECTED .MOV")
+    logging.info("STARTED FFMPEG CONVERSION")
+    ffmpeg_file_name = scan_uuid + "_ffmpeg" + ".mp4"
+    logging.info(f"OUTPUT_NAME: {ffmpeg_file_name}")
 
-    file_name = file_operations.object_name(scan_uuid, process_type)
-    url = minio_client.presigned_get_object(bucket_name, file_name)
+    try:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-i",
+                tmp_file,
+                "-c:v",
+                "libx264",
+                "-crf",
+                "23",
+                "-preset",
+                "veryfast",
+                ffmpeg_file_name,
+            ],
+            check=True,
+        )
+        logging.info(f"Successfully converted {tmp_file} to {ffmpeg_file_name}")
 
+        os.remove(tmp_file)
+    except subprocess.CalledProcessError as e:
+        logging.error(f"ffmpeg conversion error: {e}")
+        raise Exception("Error converting mov to mp4")
+
+    return ffmpeg_file_name
+
+def mediapipe_processing(temp_file_name, scan_uuid):
+    base_options = mp_py.BaseOptions(
+        model_asset_path=POSE_LANDMARKER_TASK,
+        #delegate=mp.tasks.BaseOptions.Delegate.GPU,
+    )
+    options = mp_py.vision.PoseLandmarkerOptions(
+        running_mode=VisionTaskRunningMode.VIDEO,
+        min_pose_detection_confidence=0.8,
+        min_tracking_confidence=0.8,
+        base_options=base_options,
+        output_segmentation_masks=True,
+    )
+
+    detector = mp_py.vision.PoseLandmarker.create_from_options(options)
+    cap = cv2.VideoCapture(temp_file_name)
+
+    if not cap.isOpened():
+        raise Exception("Could not open video")
+
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+
+    output_filename = scan_uuid + ".mp4"
+
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(output_filename, fourcc, fps, (width, height))
+    landmarks = []
+
+    timestamp_ms = 0
+    facing_direction: FacingDirection = "left"
+    while cap.isOpened():
+        success, frame = cap.read()
+        if not success:
+            logging.info("REACHED END OF VIDEO")
+            break
+
+        timestamp_ms += 1000 / fps
+
+        dimmed_frame = cv2.addWeighted(frame, 0.4, np.zeros_like(frame), 0.4, 0)
+
+        image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)  # type: ignore
+        results = detector.detect_for_video(image, int(timestamp_ms))
+
+        if not results.pose_landmarks:
+            out.write(dimmed_frame)
+            continue
+
+        pose_landmarks = results.pose_landmarks[0]
+        landmarks.append(pose_landmarks)
+
+        overlay = np.zeros_like(frame, dtype=np.uint8)
+
+        facing_direction = determine_facing_direction(pose_landmarks)
+        frame_obj = FrameObject(width=width, height=height)
+
+        draw_wireframe(overlay, pose_landmarks, facing_direction)
+        knee_angle = get_knee_angle(pose_landmarks, frame_obj, facing_direction)
+        elbow_angle = get_elbow_angle(pose_landmarks, frame_obj, facing_direction)
+
+        result_frame = cv2.addWeighted(dimmed_frame, 1, overlay, 1, 0)
+
+        out.write(result_frame)
+
+        single_frame = Frame(knee_angle=knee_angle, elbow_angle=elbow_angle, joints=pose_landmarks)
+        frames.append(single_frame)
+
+    cap.release()
+    out.release()
+
+    logging.info("DONE WITH DRAWING VIDEO")
+
+    video_data = VideoData(frames=frames, facing_direction=facing_direction)
+
+    result = Result(height=height, width=width, data=video_data)
+
+    return result
+
+
+def process_video(scan_uuid, file_extension):
+    temp_uuid = str(uuid.uuid4())
+    s3_url = f"videos/pedalling/{scan_uuid}.{file_extension}"
+    logging.info(f"S3_URL: {s3_url}")
+    file = minio_client.get_object(bucket_name, s3_url)
+
+    temp_file_name = f"{temp_uuid}+.{file_extension}"
+    with open(temp_file_name, "wb") as temp_file:
+        temp_file.write(file.data)
+
+    logging.info(f"TEMP_NAME: {temp_file_name}")
+    logging.info("VIDEO")
+
+    if temp_file_name.lower().endswith(".mov"):
+        minio_client.remove_object(bucket_name, s3_url)
+        s3_url = s3_url.lower().replace(".mov", ".mp4")
+        ffmpeg_name = convert_mov_to_mp4(scan_uuid, temp_file_name)
+        temp_file_name = ffmpeg_name
+
+    result = mediapipe_processing(temp_file_name, scan_uuid)
+
+    output_filename = scan_uuid + ".mp4"
+
+    minio_client.fput_object(bucket_name, s3_url, output_filename, content_type="video/mp4")
+
+    logging.info("UPLOADED VIDEO TO S3")
+
+    os.remove(output_filename)
+    os.remove(temp_file_name)
+
+    logging.info("DELETED TEMPORARY FILE")
+
+    return result
+
+
+def process_photo(scan_uuid, process_type):
+    logging.info("PHOTO")
+
+    temp_file_path = file_operations.download_image(
+        minio_client, bucket_name, scan_uuid, process_type
+    )
+    base_options = mp_py.BaseOptions(model_asset_path=SELFIE_SEGMENTER_TFLITE)
+    options = mp_py.vision.ImageSegmenterOptions(
+        running_mode=VisionTaskRunningMode.IMAGE,
+        base_options=base_options,
+        output_category_mask=True,
+    )
+    segmenter = mp_py.vision.ImageSegmenter.create_from_options(options)
+
+    mp_image = mp.Image.create_from_file(temp_file_path)
+    frame = cv2.imread(temp_file_path)
+
+    segmentation_result = segmenter.segment(mp_image)
+
+    mask = segmentation_result.category_mask
+
+    mask_resized = cv2.resize(mask.numpy_view(), (frame.shape[1], frame.shape[0]))
+    mask_normalized = mask_resized.astype(np.float32) / 255.0
+    min_y = 1_000_000
+    max_y = -1
+    height = frame.shape[0]
+    width = frame.shape[1]
+
+    for i, x in enumerate(mask_normalized):
+        for _, y in enumerate(x):
+            if y == 0:
+                if i < min_y:
+                    min_y = i
+                if i > max_y:
+                    max_y = i
+    highest_point = height - min_y
+    lowest_point = height - max_y
+
+    logging.info(
+        "SUCCESSFULLY CALCULATED HIGHEST AND LOWEST POINT: "
+        + str(highest_point)
+        + " "
+        + str(lowest_point)
+    )
+
+    result = Result(height=height, width=width, data=(highest_point, lowest_point))
+    os.remove(temp_file_path)
+
+    logging.info("DELETED TEMPORARY PHOTO")
+
+    return result
+
+
+async def process_file(scan_uuid: str, process_type: ProcessType, file_extension: str):
     result = Result(height=0, width=0, data=None)
 
     if process_type == "video":
-        logging.info("VIDEO")
-        base_options = mp_py.BaseOptions(
-            model_asset_path=POSE_LANDMARKER_TASK,
-            delegate=mp.tasks.BaseOptions.Delegate.GPU,
-        )
-        options = mp_py.vision.PoseLandmarkerOptions(
-            running_mode=VisionTaskRunningMode.VIDEO,
-            min_pose_detection_confidence=0.8,
-            min_tracking_confidence=0.8,
-            base_options=base_options,
-            output_segmentation_masks=True,
-        )
-        logging.info(f"GPU Delegate: {mp.tasks.BaseOptions.Delegate.GPU}")
-
-        detector = mp_py.vision.PoseLandmarker.create_from_options(options)
-        cap = cv2.VideoCapture(url)
-
-        if not cap.isOpened():
-            raise Exception("Could not open video")
-
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = cap.get(cv2.CAP_PROP_FPS)
-
-        output_filename = str(uuid.uuid4()) + ".mp4"
-
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # type: ignore
-        out = cv2.VideoWriter(output_filename, fourcc, fps, (width, height))
-        landmarks = []
-
-        logging.info(f"GPU Delegate: {mp.tasks.BaseOptions.Delegate.GPU}")
-
-        timestamp_ms = 0
-        facing_direction: FacingDirection = "left"
-        while cap.isOpened():
-            success, frame = cap.read()
-            if not success:
-                logging.info("REACHED END OF VIDEO")
-                break
-
-            timestamp_ms += 1000 / fps
-
-            dimmed_frame = cv2.addWeighted(frame, 0.4, np.zeros_like(frame), 0.4, 0)
-
-            image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)  # type: ignore
-            results = detector.detect_for_video(image, int(timestamp_ms))
-
-            if not results.pose_landmarks:
-                out.write(dimmed_frame)
-                continue
-
-            pose_landmarks = results.pose_landmarks[0]
-            landmarks.append(pose_landmarks)
-
-            overlay = np.zeros_like(frame, dtype=np.uint8)
-
-            facing_direction = determine_facing_direction(pose_landmarks)
-            frame_obj = FrameObject(width=width, height=height)
-
-            draw_wireframe(overlay, pose_landmarks, facing_direction)
-            knee_angle = get_knee_angle(pose_landmarks, frame_obj, facing_direction)
-            elbow_angle = get_elbow_angle(pose_landmarks, frame_obj, facing_direction)
-
-            result_frame = cv2.addWeighted(dimmed_frame, 1, overlay, 1, 0)
-
-            out.write(result_frame)
-
-            single_frame = Frame(
-                knee_angle=knee_angle, elbow_angle=elbow_angle, joints=pose_landmarks
-            )
-            frames.append(single_frame)
-
-        logging.info("DONE WITH DRAWING VIDEO")
-        logging.info(f"GPU Delegate: {mp.tasks.BaseOptions.Delegate.GPU}")
-
-
-        video_data = VideoData(
-            frames=frames,
-            facing_direction=facing_direction,
-        )
-
-        result = Result(height=height, width=width, data=video_data)
-        cap.release()
-        out.release()
-
-        minio_client.fput_object(
-            bucket_name,
-            file_name,
-            output_filename,
-            content_type=content_type,
-        )
-
-        logging.info("UPLOADED VIDEO TO S3")
-
-
-        os.remove(output_filename)
-
-        logging.info("DELETED TEMPORARY FILE")
-
+        result = process_video(scan_uuid, file_extension)
 
     elif process_type == "photo":
-        logging.info("PHOTO")
-
-        temp_file_path = file_operations.download_file(
-            minio_client, bucket_name, scan_uuid, process_type
-        )
-        base_options = mp_py.BaseOptions(model_asset_path=SELFIE_SEGMENTER_TFLITE)
-        options = mp_py.vision.ImageSegmenterOptions(
-            running_mode=VisionTaskRunningMode.IMAGE,
-            base_options=base_options,
-            output_category_mask=True,
-        )
-        segmenter = mp_py.vision.ImageSegmenter.create_from_options(options)
-
-        mp_image = mp.Image.create_from_file(temp_file_path)
-        frame = cv2.imread(temp_file_path)
-
-        segmentation_result = segmenter.segment(mp_image)
-
-        mask = segmentation_result.category_mask
-
-        mask_resized = cv2.resize(mask.numpy_view(), (frame.shape[1], frame.shape[0]))
-        mask_normalized = mask_resized.astype(np.float32) / 255.0
-        min_y = 1_000_000
-        max_y = -1
-        height = frame.shape[0]
-        width = frame.shape[1]
-
-        for i, x in enumerate(mask_normalized):
-            for _, y in enumerate(x):
-                if y == 0:
-                    if i < min_y:
-                        min_y = i
-                    if i > max_y:
-                        max_y = i
-        highest_point = height - min_y
-        lowest_point = height - max_y
-
-        logging.info("SUCCESSFULLY CALCULATED HIGHEST AND LOWEST POINT: " + str(highest_point) + " " + str(lowest_point))
-
-        result = Result(height=height, width=width, data=(highest_point, lowest_point))
-        os.remove(temp_file_path)
-
-        logging.info("DELETED TEMPORARY PHOTO")
-
+        result = process_photo(scan_uuid, file_extension)
 
     await call_callback(scan_uuid, process_type, result)
 
@@ -257,8 +306,9 @@ async def process(scan_uuid: str, process_type: ProcessType):
 async def serverless_job(job):
     process_type = job["input"]["process_type"]
     scan_uuid = job["input"]["scan_uuid"]
-    asyncio.create_task(process(scan_uuid, process_type))
-    #asyncio.create_task(smi())
+    file_extension = job["input"]["file_extension"]
+    asyncio.create_task(process_file(scan_uuid, process_type, file_extension))
+
     return "Started processing"
 
 
