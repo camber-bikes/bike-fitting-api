@@ -187,6 +187,9 @@ async def process(scan_uuid: str, process_type: ProcessType):
             content_type=content_type,
         )
 
+        os.remove(output_filename)
+
+
     elif process_type == "photo":
         temp_file_path = file_operations.download_file(
             minio_client, bucket_name, scan_uuid, process_type
