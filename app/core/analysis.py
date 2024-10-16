@@ -5,7 +5,6 @@ import uuid
 import numpy as np
 
 
-from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 from pydantic import BaseModel
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -35,6 +34,14 @@ class Selector(TypedDict):
     right: DirectedPoints
 
 
+class Joint(TypedDict):
+    presence: float
+    visibility: float
+    x: float
+    y: float
+    z: float
+
+
 class Point(BaseModel):
     x: float
     y: float
@@ -47,7 +54,7 @@ class Point(BaseModel):
         return np.array([self.x, self.y])
 
 
-def point_from_dict(d: dict) -> Point:
+def point_from_dict(d: Joint) -> Point:
     return Point(x=d["x"], y=d["y"])
 
 
@@ -282,7 +289,7 @@ def get_min_max_frames(
 
 
 def get_knee_values(
-    joints: RepeatedCompositeFieldContainer,
+    joints: list[Joint],
     facing_direction: FacingDirection,
 ) -> tuple[Point, Point, Point]:
     """
