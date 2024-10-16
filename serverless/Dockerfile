@@ -9,8 +9,9 @@ COPY constants.py .
 COPY calculation.py .
 COPY drawing.py .
 COPY file_operations.py .
+COPY gpu.py .
 
-COPY requirements.txt .
+COPY requirements.txt . 
 
 RUN pip3 install --break-system-packages -r ./requirements.txt
 

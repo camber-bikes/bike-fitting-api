@@ -28,7 +28,7 @@ from constants import (
 import file_operations
 from calculation import determine_facing_direction, get_knee_angle, get_elbow_angle
 from drawing import draw_wireframe
-
+from gpu import smi
 load_dotenv()
 
 
@@ -258,7 +258,7 @@ async def serverless_job(job):
     process_type = job["input"]["process_type"]
     scan_uuid = job["input"]["scan_uuid"]
     asyncio.create_task(process(scan_uuid, process_type))
-
+    asyncio.create_task(smi())
     return "Started processing"
 
 
