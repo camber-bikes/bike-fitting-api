@@ -27,6 +27,7 @@ async def call_serverless(
             serverless_url + "/runsync",
             json=content,
             headers={"Authorization": f"Bearer {os.getenv("SERVERLESS_TOKEN")}"},
+            timeout=300,
         )
         if result.status_code != 200:
             raise Exception(result)
