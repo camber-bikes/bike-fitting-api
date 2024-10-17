@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 
 from fastapi import APIRouter, Response, UploadFile
@@ -34,7 +35,9 @@ async def create_scan(session: SessionDep, body: CreateScan) -> CreateScanRespon
     if person is None:
         raise HTTPException(400, "person not found")
 
-    scan = Scan(uuid=uuid.uuid4(), person_id=person.id)
+    scan = Scan(
+        uuid=uuid.uuid4(), person_id=person.id, created_at=datetime.datetime.now()
+    )
     session.add(scan)
     await session.commit()
 
@@ -90,9 +93,11 @@ async def upload_body_photo(
     session.add(photo)
     await session.commit()
 
-    extension = file.filename.split(".")[-1]
+    extension = (file.filename or "").split(".")[-1]
 
-    asyncio.create_task(call_serverless(str(scan_uuid), process_type="photo", file_extension=extension))
+    asyncio.create_task(
+        call_serverless(str(scan_uuid), process_type="photo", file_extension=extension)
+    )
 
     return UploadResponse(successful=True)
 
@@ -135,11 +140,11 @@ async def upload_pedalling_video(
     Returns true if the upload was successful.
     """
 
-    if not file.content_type.startswith(VIDEO_CONTENT_TYPE) or not (
+    if not (file.content_type or "").startswith(VIDEO_CONTENT_TYPE) or not (
         file.filename or ""
     ).lower().endswith((".mp4", ".mov")):
         raise HTTPException(400, "must upload a video in format mp4 or mov")
-    extension = file.filename.split(".")[-1]
+    extension = (file.filename or "").split(".")[-1]
 
     scan = await session.exec(select(Scan).where(Scan.uuid == scan_uuid))
     scan = scan.first()

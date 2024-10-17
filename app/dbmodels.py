@@ -1,5 +1,6 @@
 import enum
 import uuid as uuids
+import datetime
 
 from typing import Any, Literal, Optional, TypedDict, Union
 from sqlalchemy import Column
@@ -26,6 +27,7 @@ class Scan(BaseTable, table=True):
     )
     person_id: Optional[int] = Field(default=None, foreign_key="person.id")
     result: Optional[Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: datetime.datetime
 
 
 class Status(str, enum.Enum):

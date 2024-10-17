@@ -5,6 +5,7 @@ from minio.api import Minio
 
 import constants
 
+
 def download_image(
     minio_client: Minio,
     bucket_name: str,
@@ -36,6 +37,7 @@ def download_image(
         raise Exception(f"Downloaded file is not a valid image: {temp_file.name}")
 
     return temp_file_name
+
 
 def object_name(scan_uuid: str, original_extension: str) -> str:
     """

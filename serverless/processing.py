@@ -124,10 +124,11 @@ def convert_mov_to_mp4(scan_uuid, tmp_file):
 
     return ffmpeg_file_name
 
+
 def mediapipe_processing(temp_file_name, scan_uuid):
     base_options = mp_py.BaseOptions(
         model_asset_path=POSE_LANDMARKER_TASK,
-        #delegate=mp.tasks.BaseOptions.Delegate.GPU,
+        # delegate=mp.tasks.BaseOptions.Delegate.GPU,
     )
     options = mp_py.vision.PoseLandmarkerOptions(
         running_mode=VisionTaskRunningMode.VIDEO,
@@ -149,7 +150,7 @@ def mediapipe_processing(temp_file_name, scan_uuid):
 
     output_filename = scan_uuid + ".mp4"
 
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # type:ignore
     out = cv2.VideoWriter(output_filename, fourcc, fps, (width, height))
     landmarks = []
 
@@ -188,7 +189,9 @@ def mediapipe_processing(temp_file_name, scan_uuid):
 
         out.write(result_frame)
 
-        single_frame = Frame(knee_angle=knee_angle, elbow_angle=elbow_angle, joints=pose_landmarks)
+        single_frame = Frame(
+            knee_angle=knee_angle, elbow_angle=elbow_angle, joints=pose_landmarks
+        )
         frames.append(single_frame)
 
     cap.release()
@@ -226,7 +229,9 @@ def process_video(scan_uuid, file_extension):
 
     output_filename = scan_uuid + ".mp4"
 
-    minio_client.fput_object(bucket_name, s3_url, output_filename, content_type="video/mp4")
+    minio_client.fput_object(
+        bucket_name, s3_url, output_filename, content_type="video/mp4"
+    )
 
     logging.info("UPLOADED VIDEO TO S3")
 

@@ -66,4 +66,6 @@ async def get_scans(session: SessionDep, person_uuid: uuid.UUID) -> list[ScanRes
 
     scans = await session.exec(select(Scan).where(Scan.person_id == person.id))
 
-    return [ScanResponse(scan_uuid=scan.uuid) for scan in scans]
+    return [
+        ScanResponse(scan_uuid=scan.uuid, created_at=scan.created_at) for scan in scans
+    ]

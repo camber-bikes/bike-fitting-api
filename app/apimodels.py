@@ -1,5 +1,6 @@
 from typing import Any, Literal, Union, Optional
 import uuid
+import datetime
 from pydantic import BaseModel, Field
 
 VIDEO_CONTENT_TYPE = "video/"
@@ -18,6 +19,7 @@ class PersonInformationResponse(BaseModel):
 
 class ScanResponse(BaseModel):
     scan_uuid: uuid.UUID
+    created_at: datetime.datetime
 
 
 class CreateScan(BaseModel):
