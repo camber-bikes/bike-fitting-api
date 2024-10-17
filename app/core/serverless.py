@@ -7,7 +7,7 @@ serverless_url = os.getenv("SERVERLESS_URL") or ""
 if serverless_url == "":
     raise Exception("SERVERLESS_URL environment varable not set")
 
-RETRIES = 3
+RETRIES = 5
 
 transport = AsyncHTTPTransport(retries=RETRIES)
 
@@ -27,7 +27,7 @@ async def call_serverless(
             serverless_url + "/runsync",
             json=content,
             headers={"Authorization": f"Bearer {os.getenv("SERVERLESS_TOKEN")}"},
-            timeout=300,
+            timeout=500,
         )
         if result.status_code != 200:
             raise Exception(result)

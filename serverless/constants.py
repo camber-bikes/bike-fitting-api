@@ -4,7 +4,7 @@ from mediapipe.python.solutions import pose
 from pydantic import BaseModel
 
 # general config
-RETRIES = 3
+RETRIES = 5
 
 # types
 type ProcessType = Union[Literal["photo"], Literal["video"]]

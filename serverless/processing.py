@@ -87,6 +87,7 @@ async def call_callback(scan_uuid: str, process_type: ProcessType, result: Resul
             backend_url + f"/api/scans/{scan_uuid}/callback",
             content=f'{{"process_type": "{process_type}", "result": {result.model_dump_json()}}}'.encode(),
             headers={"content_type": "application/json"},
+            timeout=300,
         )
         if response.status_code != 200:
             raise Exception(result)
