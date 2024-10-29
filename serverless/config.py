@@ -40,10 +40,9 @@ class Config(BaseModel):
     environment: str = Field(default="production")
 
 
-@lru_cache()
 def get_config() -> Config:
     """
-    Loads and caches the configuration from environment variables.
+    Loads the configuration from environment variables.
 
     Uses `load_dotenv` to load the environment variables and returns an instance of
     the `Config` class populated with settings for MinIO, API configuration,
