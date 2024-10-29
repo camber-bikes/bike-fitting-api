@@ -13,7 +13,7 @@ from mediapipe.tasks.python.vision.core.vision_task_running_mode import (
 from typing import List, Optional, Tuple, Any
 
 from constants import Frame, Result, VideoData, FrameObject, FacingDirection
-from calculation import Calculator
+from calculation import get_knee_angle, get_elbow_angle, determine_facing_direction
 from drawing import draw_wireframe
 
 
@@ -94,13 +94,13 @@ class FrameProcessor:
 
         overlay = np.zeros_like(dimmed_frame, dtype=np.uint8)
 
-        facing_direction = Calculator.determine_facing_direction(pose_landmarks)
+        facing_direction = determine_facing_direction(pose_landmarks)
         draw_wireframe(overlay, pose_landmarks, facing_direction)
 
-        knee_angle = Calculator.get_knee_angle(
+        knee_angle = get_knee_angle(
             pose_landmarks, self.frame_obj, facing_direction
         )
-        elbow_angle = Calculator.get_elbow_angle(
+        elbow_angle = get_elbow_angle(
             pose_landmarks, self.frame_obj, facing_direction
         )
 
@@ -306,7 +306,7 @@ class VideoProcessor:
                 result_frame, frame_data = process_result
                 video_writer.write_frame(result_frame)
                 frames.append(frame_data)
-                facing_direction = Calculator.determine_facing_direction(
+                facing_direction = determine_facing_direction(
                     frame_data.joints
                 )
 
