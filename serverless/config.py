@@ -3,7 +3,6 @@ from typing import Union, Literal
 
 from pydantic import BaseModel, Field
 from pathlib import Path
-from functools import lru_cache
 import os
 from dotenv import load_dotenv
 
@@ -11,17 +10,17 @@ type FacingDirection = Union[Literal["left"], Literal["right"]]
 
 
 class MinioConfig(BaseModel):
-    endpoint: str = Field(..., env="S3_ENDPOINT")
-    access_key: str = Field(..., env="S3_CLIENT_ID")
-    secret_key: str = Field(..., env="S3_CLIENT_SECRET")
-    bucket_name: str = Field(..., env="S3_BUCKET")
+    endpoint: str = Field()
+    access_key: str = Field()
+    secret_key: str = Field()
+    bucket_name: str = Field()
     secure: bool = Field(default=True)
     video_path: str = Field(default="videos/pedalling/")
     photo_path: str = Field(default="photos/body/")
 
 
 class APIConfig(BaseModel):
-    backend_url: str = Field(..., env="BACKEND_URL")
+    backend_url: str = Field()
     retries: int = Field(default=3)
 
 
