@@ -2,18 +2,22 @@ import mediapipe as mp
 import numpy as np
 from mediapipe.tasks.python.components.containers.landmark import NormalizedLandmark
 
-from constants import FacingDirection
+from config import FacingDirection
 
-
-def get_knee_angle(landmarks: list[NormalizedLandmark], frame, facing_direction) -> int:
+def get_knee_angle(
+    landmarks: list[NormalizedLandmark], frame, facing_direction
+) -> int:
     """
-    Extracts the three relevant coordinates for calculating the knee angle from a mediapipe landmark object.
+    Calculate the knee angle based on landmarks and facing direction.
+
     Args:
-        landmarks: Default MediaPipe landmark object
-        frame: Object containing width and height of the recorded video frame
-        facing_direction: Direction the user is facing from the camera view
+        landmarks (list[NormalizedLandmark]): A list of normalized landmarks representing body key points.
+        frame: The frame object containing width and height attributes.
+        facing_direction (str): The direction the subject is facing ("left" or "right").
+
     Returns:
-        (int): angle of the knee
+        int: The calculated knee angle in degrees.
+
     """
     mp_pose = mp.solutions.pose
     lm = landmarks
@@ -55,18 +59,18 @@ def get_knee_angle(landmarks: list[NormalizedLandmark], frame, facing_direction)
 
     return angle
 
-
 def get_elbow_angle(
     landmarks: list[NormalizedLandmark], frame, facing_direction
 ) -> int:
-    """
-    Extracts the three relevant coordinates for calculating the elbow angle from a mediapipe landmark object.
+    """Calculate the elbow angle based on landmarks and facing direction.
+
     Args:
-        landmarks: Default MediaPipe landmark object
-        frame: Object containing width and height of the recorded video frame
-        facing_direction: Direction the user is facing from the camera view
+        landmarks (list[NormalizedLandmark]): A list of normalized landmarks representing body key points.
+        frame: The frame object containing width and height attributes.
+        facing_direction (str): The direction the subject is facing ("left" or "right").
+
     Returns:
-        (int): angle of the elbow
+        int: The calculated elbow angle in degrees.
     """
     mp_pose = mp.solutions.pose
     lm = landmarks
@@ -108,17 +112,17 @@ def get_elbow_angle(
 
     return angle
 
-
 def calculate_angle(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> int:
     """
-    Uses the dot product to calculate the angle between three points. The point of the calculated angle has to be passed as the second parameter.
+    Calculate the angle formed by three points in a 2D space.
+
     Args:
-        a: coordinates of the first point
-        b: coordinates of the second point (where the angle is measured)
-        c: coordinates of the third point
+        a (np.ndarray): A 1D array representing the coordinates of the first point.
+        b (np.ndarray): A 1D array representing the coordinates of the vertex point.
+        c (np.ndarray): A 1D array representing the coordinates of the second point.
 
     Returns:
-        (int): angle
+        int: The calculated angle in degrees, rounded to the nearest integer.
     """
     v1 = a - b
     v2 = c - b
@@ -134,15 +138,23 @@ def calculate_angle(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> int:
 
     return angle
 
-
-def determine_facing_direction(landmarks: list[NormalizedLandmark]) -> FacingDirection:
+def determine_facing_direction(
+    landmarks: list[NormalizedLandmark],
+) -> FacingDirection:
     """
-    Determines if the person is facing left or right based on arm positions relative to the shoulders.
+    Determine the facing direction based on wrist and elbow positions.
+
+    This method analyzes the x-coordinates of the left and right wrists and elbows
+    to ascertain whether the subject is facing left or right. It assumes that
+    if the left wrist is positioned to the left of the left elbow, the subject
+    is facing left, and vice versa for the right side.
+
     Args:
-        landmarks: Default MediaPipe landmark object
+        landmarks (list[NormalizedLandmark]): A list of normalized pose landmarks
+            containing at least the wrist and elbow landmarks.
 
     Returns:
-    str: 'left' or 'right' depending on the facing direction
+        FacingDirection: A string indicating the facing direction, either "left" or "right".
     """
     mp_pose = mp.solutions.pose
     lm = landmarks

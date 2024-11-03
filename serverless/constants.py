@@ -1,25 +1,9 @@
-from typing import Union, Literal
-
-from mediapipe.python.solutions import pose
+from typing import Any, List, Literal, Optional, Union
 from pydantic import BaseModel
+from mediapipe.python.solutions import pose
 
-# general config
-RETRIES = 5
-
-# types
-type ProcessType = Union[Literal["photo"], Literal["video"]]
 type FacingDirection = Union[Literal["left"], Literal["right"]]
-
-
-# class
-class FrameObject(BaseModel):
-    width: int
-    height: int
-
-
-# model config
-POSE_LANDMARKER_TASK = "pose_landmarker.task"
-SELFIE_SEGMENTER_TFLITE = "selfie_segmenter.tflite"
+type ProcessType = Union[Literal["video", "photo"]]
 
 # color constants to visualize landmarks in video
 LINE_COLOR = (255, 0, 136)
@@ -72,3 +56,34 @@ BODY_CONNECTIONS = {
         (pose.PoseLandmark.RIGHT_HEEL, pose.PoseLandmark.RIGHT_FOOT_INDEX),
     ],
 }
+
+class Frame(BaseModel):
+    knee_angle: float
+    elbow_angle: float
+    joints: Any
+
+class VideoData(BaseModel):
+    frames: List[Frame]
+    facing_direction: FacingDirection
+
+
+class PhotoData(BaseModel):
+    highest_point: float
+    lowest_point: float
+
+
+class Result(BaseModel):
+    height: int
+    width: int
+    data: Any
+
+
+class FrameObject(BaseModel):
+    width: int
+    height: int
+
+
+class ProcessingResult(BaseModel):
+    success: bool
+    error: Optional[str] = None
+    result: Optional[Result] = None
