@@ -11,7 +11,8 @@ docker-compose up -d
 - Start lambda function
 
 ```bash
-python serverless/processing.py --rp_debugger --rp_serve_api --rp_api_port 6969
+cd serverless
+python main.py --rp_debugger --rp_serve_api --rp_api_port 6969
 ```
 
 - Start server
