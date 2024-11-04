@@ -4,9 +4,8 @@ from mediapipe.tasks.python.components.containers.landmark import NormalizedLand
 
 from config import FacingDirection
 
-def get_knee_angle(
-    landmarks: list[NormalizedLandmark], frame, facing_direction
-) -> int:
+
+def get_knee_angle(landmarks: list[NormalizedLandmark], frame, facing_direction) -> int:
     """
     Calculate the knee angle based on landmarks and facing direction.
 
@@ -58,6 +57,7 @@ def get_knee_angle(
     angle = calculate_angle(hip_array, knee_array, ankle_array)
 
     return angle
+
 
 def get_elbow_angle(
     landmarks: list[NormalizedLandmark], frame, facing_direction
@@ -112,6 +112,7 @@ def get_elbow_angle(
 
     return angle
 
+
 def calculate_angle(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> int:
     """
     Calculate the angle formed by three points in a 2D space.
@@ -137,6 +138,7 @@ def calculate_angle(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> int:
     angle = np.degrees(np.arccos(cosine_angle))
 
     return angle
+
 
 def determine_facing_direction(
     landmarks: list[NormalizedLandmark],

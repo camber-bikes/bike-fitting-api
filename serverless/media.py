@@ -97,12 +97,8 @@ class FrameProcessor:
         facing_direction = determine_facing_direction(pose_landmarks)
         draw_wireframe(overlay, pose_landmarks, facing_direction)
 
-        knee_angle = get_knee_angle(
-            pose_landmarks, self.frame_obj, facing_direction
-        )
-        elbow_angle = get_elbow_angle(
-            pose_landmarks, self.frame_obj, facing_direction
-        )
+        knee_angle = get_knee_angle(pose_landmarks, self.frame_obj, facing_direction)
+        elbow_angle = get_elbow_angle(pose_landmarks, self.frame_obj, facing_direction)
 
         result_frame = cv2.addWeighted(dimmed_frame, 1, overlay, 1, 0)
 
@@ -306,9 +302,7 @@ class VideoProcessor:
                 result_frame, frame_data = process_result
                 video_writer.write_frame(result_frame)
                 frames.append(frame_data)
-                facing_direction = determine_facing_direction(
-                    frame_data.joints
-                )
+                facing_direction = determine_facing_direction(frame_data.joints)
 
             video_data = VideoData(frames=frames, facing_direction=facing_direction)
 

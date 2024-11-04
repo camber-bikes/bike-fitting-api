@@ -57,10 +57,12 @@ BODY_CONNECTIONS = {
     ],
 }
 
+
 class Frame(BaseModel):
     knee_angle: float
     elbow_angle: float
     joints: Any
+
 
 class VideoData(BaseModel):
     frames: List[Frame]
