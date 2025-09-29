@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM ubuntu:24.10
 
 RUN apt update && apt install -y python3 python3-pip libgl1 curl libglib2.0-0 ffmpeg
 
